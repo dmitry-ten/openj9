@@ -9508,7 +9508,7 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
          reloKind = TR_VerifyRefArrayForAlloc;
          }
 
-      cg->addAOTRelocation(new (cg->trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(startInstr,
+      cg->addExternalRelocation(new (cg->trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(startInstr,
                                                                                (uint8_t *) classSymRef,
                                                                                (uint8_t *) recordInfo,
                                                                                reloKind, cg),
