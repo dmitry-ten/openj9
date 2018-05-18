@@ -1055,5 +1055,17 @@ class TR_RelocationRecordEmitClass : public TR_RelocationRecordWithInlinedSiteIn
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
    };
 
+class TR_RelocationRecordClassUnload : public TR_RelocationRecord
+   {
+   public:
+      TR_RelocationRecordClassUnload() {}
+
+      virtual char *name();
+
+      virtual int32_t bytesInHeaderAndPayload();
+
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
+   };
+
 #endif   // RELOCATION_RECORD_INCL
 

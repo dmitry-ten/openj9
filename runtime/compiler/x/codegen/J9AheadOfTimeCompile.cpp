@@ -567,7 +567,6 @@ uint8_t *J9::X86::AheadOfTimeCompile::initialiseAOTRelocationHeader(TR::Iterated
          cursor += SIZEPOINTER;
          }
          break;
-
       default:
       	return cursor;
       }
@@ -635,7 +634,9 @@ uint32_t J9::X86::AheadOfTimeCompile::_relocationTargetTypeToHeaderSizeMap[TR_Nu
    32,                                              // TR_VirtualRamMethodConst               = 53
    40,                                              // TR_InlinedInterfaceMethod              = 54
    40,                                              // TR_InlinedVirtualMethod                = 55
-
+   0,                                               // TR_NativeMethodAbsolute                = 56
+   0,                                               // TR_NativeMethodRelative                = 57
+   8,                                               // TR_ClassUnload                         = 58 
 #else
 
    12,                                              // TR_ConstantPool                        = 0
@@ -694,6 +695,9 @@ uint32_t J9::X86::AheadOfTimeCompile::_relocationTargetTypeToHeaderSizeMap[TR_Nu
    16,                                              // TR_VirtualRamMethodConst               = 53
    20,                                              // TR_InlinedInterfaceMethod              = 54
    20,                                              // TR_InlinedVirtualMethod                = 55
+   0,                                               // TR_NativeMethodAbsolute                = 56
+   0,                                               // TR_NativeMethodRelative                = 57
+   4,                                               // TR_ClassUnload                         = 58 
 #endif
    };
 

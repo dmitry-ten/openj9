@@ -220,6 +220,7 @@ struct TR_RelocationRecordEmitClassBinaryTemplate : public TR_RelocationRecordWi
 #endif
    };
 
+typedef TR_RelocationRecordBinaryTemplate TR_RelocationRecordClassUnloadBinaryTemplate;
 
 // TR_RelocationRecordGroup
 
@@ -448,6 +449,9 @@ TR_RelocationRecord::create(TR_RelocationRecord *storage, TR_RelocationRuntime *
          break;
       case TR_EmitClass:
          reloRecord = new (storage) TR_RelocationRecordEmitClass(reloRuntime, record);
+         break;
+      case TR_ClassUnload:
+         new (this) TR_RelocationRecordClassUnload();
          break;
       default:
          // TODO: error condition
@@ -3334,5 +3338,25 @@ TR_RelocationRecordEmitClass::applyRelocation(TR_RelocationRuntime *reloRuntime,
    TR_RelocationRecordEmitClassPrivateData *reloPrivateData = &(privateData()->emitClass);
 
    reloRuntime->addClazzRecord(reloLocation, reloPrivateData->_bcIndex, reloPrivateData->_method);
+   return 0;
+   }
+
+// AssumptionRelocation
+char *
+TR_RelocationRecordClassUnload::name()
+   {
+   return "TR_ClassUnload";
+   }
+
+int32_t
+TR_RelocationRecordClassUnload::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordClassUnloadBinaryTemplate);
+   }
+
+int32_t
+TR_RelocationRecordClassUnload::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
+   {
+   reloTarget->addPICtoPatchPtrOnClassUnload((TR_OpaqueClassBlock *)-1, reloLocation);
    return 0;
    }

@@ -2696,7 +2696,31 @@ J9::CodeGenerator::processRelocations()
    for (auto aotIterator = self()->getExternalRelocationList().begin(); aotIterator != self()->getExternalRelocationList().end(); ++aotIterator)
       {
       // Traverse the AOT/external labels
-	  (*aotIterator)->apply(self());
+      (*aotIterator)->apply(self());
+      }
+   }
+
+void J9::CodeGenerator::addExternalRelocation(TR::Relocation *r, char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node)
+   {
+   TR_ASSERT(generatingFileName, "External relocation location has improper NULL filename specified");
+   if (self()->comp()->compileRelocatableCode() || self()->comp()->getPersistentInfo()->getJaasMode() == SERVER_MODE)
+      {
+      TR::RelocationDebugInfo *genData = new(self()->trHeapMemory()) TR::RelocationDebugInfo;
+      genData->file = generatingFileName;
+      genData->line = generatingLineNumber;
+      genData->node = node;
+      r->setDebugInfo(genData);
+      _externalRelocationList.push_back(r);
+      }
+   }
+
+void J9::CodeGenerator::addExternalRelocation(TR::Relocation *r, TR::RelocationDebugInfo* info)
+   {
+   if (self()->comp()->compileRelocatableCode() || self()->comp()->getPersistentInfo()->getJaasMode() == SERVER_MODE)
+      {
+      TR_ASSERT(info, "External relocation location does not have associated debug information");
+      r->setDebugInfo(info);
+      _externalRelocationList.push_back(r);
       }
    }
 
@@ -2731,7 +2755,7 @@ void
 J9::CodeGenerator::jitAddUnresolvedAddressMaterializationToPatchOnClassRedefinition(void *firstInstruction)
    {
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(self()->fe());
-   if (self()->comp()->compileRelocatableCode())
+   if (self()->comp()->compileRelocatableCode() || self()->comp()->getPersistentInfo()->getJaasMode() == SERVER_MODE)
       {
       self()->addExternalRelocation(new (self()->trHeapMemory()) TR::ExternalRelocation((uint8_t *)firstInstruction, 0, TR_HCR, self()),
                                  __FILE__,__LINE__, NULL);
