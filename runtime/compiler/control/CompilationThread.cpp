@@ -1008,6 +1008,7 @@ TR::CompilationInfo::CompilationInfo(J9JITConfig *jitConfig) :
    _unloadedClassesTempList = nullptr;
    _newlyExtendedClasses = nullptr;
    _chTableUpdateFlags = 0;
+   _cacheResolvedMethods = !feGetEnv("TR_DisableResolvedMethodsCaching");
    }
 
 bool TR::CompilationInfo::initializeCompilationOnApplicationThread()

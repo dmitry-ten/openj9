@@ -969,6 +969,7 @@ public:
    uint8_t getCHTableUpdateDone() { return _chTableUpdateFlags; }
    uint32_t getLocalGCCounter() { return _localGCCounter; }
    void incrementLocalGCCounter() { _localGCCounter++; }
+   bool cachingResolvedMethods() { return _cacheResolvedMethods; } 
 
    static int32_t         VERY_SMALL_QUEUE;
    static int32_t         SMALL_QUEUE;
@@ -1159,6 +1160,8 @@ private:
    uint8_t _chTableUpdateFlags;
    // number of local gc cycles done
    uint32_t _localGCCounter = 0;
+   // true when caching of resolved methods is enabled
+   bool _cacheResolvedMethods;
    }; // CompilationInfo
 }
 
