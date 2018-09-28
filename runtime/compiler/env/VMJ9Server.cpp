@@ -375,8 +375,8 @@ TR_J9ServerVM::jitFieldsAreSame(TR_ResolvedMethod * method1, I_32 cpIndex1, TR_R
    TR_ResolvedMethod *clientMethod1 = serverMethod1->getRemoteMirror();
    TR_ResolvedMethod *clientMethod2 = serverMethod2->getRemoteMirror();
 
-   bool result = false;
 
+   bool result = false;
    bool sigSame = true;
    if (serverMethod1->fieldsAreSame(cpIndex1, serverMethod2, cpIndex2, sigSame))
       result = true;
@@ -384,9 +384,17 @@ TR_J9ServerVM::jitFieldsAreSame(TR_ResolvedMethod * method1, I_32 cpIndex1, TR_R
       {
       if (sigSame)
          {
-         // if name and signature comparison is inconclusive, make a remote call 
+         // if name and signature comparison is inconclusive, check cache, and make a remote call
+         // if the result is not cached.
+         // We are not caching results that can be computed locally, to save memory.
+         bool isCached;
+         result = serverMethod1->getFieldsAreSameIfCached(method2, cpIndex1, cpIndex2, &isCached);
+         if (isCached)
+            return result;
+
          stream->write(JITaaS::J9ServerMessageType::VM_jitFieldsAreSame, clientMethod1, cpIndex1, clientMethod2, cpIndex2, isStatic);
          result = std::get<0>(stream->read<bool>());
+         serverMethod1->cacheFieldsAreSame(method2, cpIndex1, cpIndex2, result);
          }
       }
    return result;

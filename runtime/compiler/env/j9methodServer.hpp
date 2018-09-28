@@ -132,6 +132,32 @@ struct TR_ResolvedMethodCacheEntry
    bool unresolvedInCP;
    };
 
+
+struct
+FieldsSameEntry
+   {
+   TR_ResolvedMethod *otherMethod;
+   int32_t cpIndex1;
+   int32_t cpIndex2;
+   bool operator==(const FieldsSameEntry &other) const
+      {
+      return (otherMethod == other.otherMethod) && (cpIndex1 == other.cpIndex1) && (cpIndex2 == other.cpIndex2);
+      }
+   };
+
+namespace std {
+  template <>
+  struct hash<FieldsSameEntry>
+  {
+    std::size_t operator()(const FieldsSameEntry& k) const
+    {
+      // Compute a hash for the table of ROM strings by hashing basePtr and offsets 
+      // separately and then XORing them
+      return (std::hash<TR_ResolvedMethod *>()(k.otherMethod)) ^ (std::hash<int32_t>()(k.cpIndex1)) ^ (std::hash<int32_t>()(k.cpIndex2));
+    }
+  };
+}
+
 class TR_ResolvedJ9JITaaSServerMethod : public TR_ResolvedJ9Method
    {
 public:
@@ -205,6 +231,8 @@ public:
    bool inROMClass(void *address);
    static void createResolvedJ9MethodMirror(TR_ResolvedJ9JITaaSServerMethodInfo &methodInfo, TR_OpaqueMethodBlock *method, uint32_t vTableSlot, TR_ResolvedMethod *owningMethod, TR_FrontEnd *fe, TR_Memory *trMemory);
    static bool _useCaching; // set by TR_DisableResolvedMethodsCaching. When false, caching of resolved methods is disabled 
+   bool getFieldsAreSameIfCached(TR_ResolvedMethod *method, int32_t cpIndex1, int32_t cpIndex2, bool *isCached);
+   void cacheFieldsAreSame(TR_ResolvedMethod *method, int32_t cpIndex1, int32_t cpIndex2, bool result);
 
 private:
    JITaaS::J9ServerStream *_stream;
@@ -230,6 +258,7 @@ private:
    UnorderedMap<uint32_t, TR_J9MethodFieldAttributes> _fieldAttributesCache; 
    UnorderedMap<uint32_t, TR_J9MethodFieldAttributes> _staticAttributesCache; 
    UnorderedMap<TR_ResolvedMethodKey, TR_ResolvedMethodCacheEntry> _resolvedMethodsCache;
+   UnorderedMap<FieldsSameEntry, bool> _fieldsSameCache;
    };
 
 #endif // J9METHODSERVER_H

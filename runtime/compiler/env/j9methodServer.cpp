@@ -53,7 +53,8 @@ TR_ResolvedJ9JITaaSServerMethod::TR_ResolvedJ9JITaaSServerMethod(TR_OpaqueMethod
    : TR_ResolvedJ9Method(fe, owningMethod),
    _fieldAttributesCache(decltype(_fieldAttributesCache)::allocator_type(trMemory->heapMemoryRegion())),
    _staticAttributesCache(decltype(_staticAttributesCache)::allocator_type(trMemory->heapMemoryRegion())),
-   _resolvedMethodsCache(decltype(_resolvedMethodsCache)::allocator_type(trMemory->heapMemoryRegion()))
+   _resolvedMethodsCache(decltype(_resolvedMethodsCache)::allocator_type(trMemory->heapMemoryRegion())),
+   _fieldsSameCache(decltype(_fieldsSameCache)::allocator_type(trMemory->heapMemoryRegion()))
    {
    TR_J9VMBase *j9fe = (TR_J9VMBase *)fe;
    TR::CompilationInfo *compInfo = TR::CompilationInfo::get(j9fe->getJ9JITConfig());
@@ -72,7 +73,8 @@ TR_ResolvedJ9JITaaSServerMethod::TR_ResolvedJ9JITaaSServerMethod(TR_OpaqueMethod
    : TR_ResolvedJ9Method(fe, owningMethod),
    _fieldAttributesCache(decltype(_fieldAttributesCache)::allocator_type(trMemory->heapMemoryRegion())),
    _staticAttributesCache(decltype(_staticAttributesCache)::allocator_type(trMemory->heapMemoryRegion())),
-   _resolvedMethodsCache(decltype(_resolvedMethodsCache)::allocator_type(trMemory->heapMemoryRegion()))
+   _resolvedMethodsCache(decltype(_resolvedMethodsCache)::allocator_type(trMemory->heapMemoryRegion())),
+   _fieldsSameCache(decltype(_fieldsSameCache)::allocator_type(trMemory->heapMemoryRegion()))
    {
    // Mirror has already been created, its parameters are passed in methodInfo
    TR_J9VMBase *j9fe = (TR_J9VMBase *)fe;
@@ -1242,4 +1244,34 @@ TR_ResolvedJ9JITaaSServerMethod::getCachedResolvedMethod(TR_ResolvedMethodKey ke
       return true;
       }
    return false;
+   }
+
+bool
+TR_ResolvedJ9JITaaSServerMethod::getFieldsAreSameIfCached(TR_ResolvedMethod *method, int32_t cpIndex1, int32_t cpIndex2, bool *isCached)
+
+   {
+   if (!_useCaching)
+      {
+      *isCached = false;
+      return false;
+      }
+   FieldsSameEntry entry = { method, cpIndex1, cpIndex2 };
+   auto it = _fieldsSameCache.find(entry);
+   if (it != _fieldsSameCache.end())
+      {
+      *isCached = true;
+      return it->second;
+      }
+   *isCached = false;
+   return false;
+   }
+
+void
+TR_ResolvedJ9JITaaSServerMethod::cacheFieldsAreSame(TR_ResolvedMethod *method, int32_t cpIndex1, int32_t cpIndex2, bool result)
+   {
+   if (!_useCaching)
+      return;
+
+   FieldsSameEntry entry = { method, cpIndex1, cpIndex2 };
+   _fieldsSameCache[entry] = result; 
    }
