@@ -156,6 +156,20 @@ typedef struct TR_JitPrivateConfig
    } TR_JitPrivateConfig;
 
 
+// JITaaS: union containing all possible datatypes of static final fields
+union
+TR_StaticFinalData
+   {
+   int8_t dataInt8Bit;
+   int16_t dataInt16Bit;
+   int32_t dataInt32Bit;
+   int64_t dataInt64Bit;
+   float dataFloat;
+   double dataDouble;
+   uintptrj_t dataAddress;
+   };
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -1093,6 +1107,7 @@ public:
    virtual uint32_t               getPrimitiveArrayOffsetInJavaVM(uint32_t arrayType);
 
    virtual bool isDecimalFormatPattern( TR::Compilation *comp, TR_ResolvedMethod *method);
+   virtual TR_StaticFinalData dereferenceStaticFinalAddress(void *staticAddress, TR::DataType addressType);
 
 private:
    void transformJavaLangClassIsArrayOrIsPrimitive( TR::Compilation *, TR::Node * callNode,  TR::TreeTop * treeTop, int32_t andMask);

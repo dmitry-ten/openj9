@@ -1459,3 +1459,23 @@ TR_J9ServerVM::transformJlrMethodInvoke(J9Method *callerMethod, J9Class *callerC
    stream->write(JITaaS::J9ServerMessageType::VM_transformJlrMethodInvoke, callerMethod, callerClass);
    return std::get<0>(stream->read<bool>());
    }
+
+TR_StaticFinalData
+TR_J9ServerVM::dereferenceStaticFinalAddress(void *staticAddress, TR::DataType addressType)
+   {
+   if (!staticAddress)
+      return {.dataAddress = 0};
+
+   OMR::CriticalSection dereferenceStaticFinalAddress(_compInfoPT->getClientData()->getStaticMapMonitor());
+   PersistentUnorderedMap<void *, TR_StaticFinalData> &staticMap = _compInfoPT->getClientData()->getStaticFinalDataMap();
+   auto it = staticMap.find(staticAddress);
+   if (it == staticMap.end())
+      {
+      JITaaS::J9ServerStream *stream = _compInfoPT->getMethodBeingCompiled()->_stream;
+      stream->write(JITaaS::J9ServerMessageType::VM_dereferenceStaticAddress, staticAddress, addressType);
+      auto data =  std::get<0>(stream->read<TR_StaticFinalData>());
+      it = staticMap.insert({staticAddress, data}).first;
+      }
+   return it->second;
+   }
+

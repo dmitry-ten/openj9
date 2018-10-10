@@ -1010,8 +1010,6 @@ J9::TransformUtil::transformIndirectLoad(TR::Compilation *comp, TR::Node *node)
 bool
 J9::TransformUtil::transformDirectLoad(TR::Compilation *comp, TR::Node *node)
    {
-   if (TR::CompilationInfo::getStream())
-      return false;
    TR_ASSERT(node->getOpCode().isLoadVarDirect(), "Expecting direct load; found %s %p", node->getOpCode().getName(), node);
    TR::SymbolReference *symRef = node->getSymbolReference();
    TR::Symbol           *sym    = node->getSymbol();
@@ -1099,36 +1097,36 @@ J9::TransformUtil::transformDirectLoad(TR::Compilation *comp, TR::Node *node)
          }
 
       TR::StaticSymbol *staticSym = sym->castToStaticSymbol();
+      TR_StaticFinalData data = ((TR_J9VM *) comp->fej9())->dereferenceStaticFinalAddress(staticSym->getStaticAddress(), loadType);
       if (typeIsConstible)
          {
          if (performTransformation(comp, "O^O transformDirectLoad: turn [%p] %s %s into load const\n", node, node->getOpCode().getName(), symRef->getName(comp->getDebug())))
             {
-            TR::VMAccessCriticalSection isConsitble(comp->fej9());
             switch (loadType)
                {
                case TR::Int8:
                   TR::Node::recreate(node, TR::bconst);
-                  node->setByte(*(int8_t*)staticSym->getStaticAddress());
+                  node->setByte(data.dataInt8Bit);
                   break;
                case TR::Int16:
                   TR::Node::recreate(node, TR::sconst);
-                  node->setShortInt(*(int16_t*)staticSym->getStaticAddress());
+                  node->setShortInt(data.dataInt16Bit);
                   break;
                case TR::Int32:
                   TR::Node::recreate(node, TR::iconst);
-                  node->setInt(*(int32_t*)staticSym->getStaticAddress());
+                  node->setInt(data.dataInt32Bit);
                   break;
                case TR::Int64:
                   TR::Node::recreate(node, TR::lconst);
-                  node->setLongInt(*(int64_t*)staticSym->getStaticAddress());
+                  node->setLongInt(data.dataInt64Bit);
                   break;
                case TR::Float:
                   TR::Node::recreate(node, TR::fconst);
-                  node->setFloat(*(float*)staticSym->getStaticAddress());
+                  node->setFloat(data.dataFloat);
                   break;
                case TR::Double:
                   TR::Node::recreate(node, TR::dconst);
-                  node->setDouble(*(double*)staticSym->getStaticAddress());
+                  node->setDouble(data.dataDouble);
                   break;
                default:
                   TR_ASSERT(0, "Unexpected type %s", loadType.toString());
@@ -1141,7 +1139,7 @@ J9::TransformUtil::transformDirectLoad(TR::Compilation *comp, TR::Node *node)
                                                             symRef->getName(comp->getDebug())));
          return true;
          }
-      else if (*(uintptrj_t*)staticSym->getStaticAddress() == 0) // Seems ok just to check for a static to be NULL without vm access
+      else if (data.dataAddress == 0) // Seems ok just to check for a static to be NULL without vm access
          {
          switch (staticSym->getRecognizedField())
             {

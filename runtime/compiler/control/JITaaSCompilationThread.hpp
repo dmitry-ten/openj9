@@ -110,6 +110,9 @@ class ClientSessionData
 
    void printStats();
 
+   TR::Monitor *getStaticMapMonitor() { return _staticMapMonitor; }
+   PersistentUnorderedMap<void *, TR_StaticFinalData> &getStaticFinalDataMap() { return _staticFinalDataMap; }
+
    private:
    uint64_t _clientUID; // for RAS
    int64_t  _timeOfLastAccess; // in ms
@@ -127,6 +130,9 @@ class ClientSessionData
    int8_t  _inUse;  // Number of concurrent compilations from the same client 
                     // Accessed with compilation monitor in hand
    VMInfo *_vmInfo; // info specific to a client VM that does not change, nullptr means not set
+
+   TR::Monitor *_staticMapMonitor;
+   PersistentUnorderedMap<void *, TR_StaticFinalData> _staticFinalDataMap; // stores values at static final addresses in JVM
    }; // ClientSessionData
 
 // Hashtable that maps clientUID to a pointer that points to ClientSessionData
