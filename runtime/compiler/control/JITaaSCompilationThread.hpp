@@ -130,6 +130,9 @@ class ClientSessionData
    void decNumActiveThreads() { --_numActiveThreads;  }
    void printStats();
 
+   TR::Monitor *getStaticMapMonitor() { return _staticMapMonitor; }
+   PersistentUnorderedMap<void *, TR_StaticFinalData> &getStaticFinalDataMap() { return _staticFinalDataMap; }
+
    private:
    const uint64_t _clientUID;
    int64_t  _timeOfLastAccess; // in ms
@@ -160,6 +163,9 @@ class ClientSessionData
                              // This is smaller or equal to _inUse because some threads
                              // could be just starting or waiting in _OOSequenceEntryList
    VMInfo *_vmInfo; // info specific to a client VM that does not change, nullptr means not set
+
+   TR::Monitor *_staticMapMonitor;
+   PersistentUnorderedMap<void *, TR_StaticFinalData> _staticFinalDataMap; // stores values at static final addresses in JVM
    }; // ClientSessionData
 
 // Hashtable that maps clientUID to a pointer that points to ClientSessionData
