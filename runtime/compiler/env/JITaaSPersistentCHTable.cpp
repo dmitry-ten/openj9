@@ -214,7 +214,8 @@ TR_JITaaSClientPersistentCHTable::serializeModifications()
       {
       auto clazz = findClassInfo(classId);
       if (!clazz) continue;
-      size_t size = FlatPersistentClassInfo::classSize(clazz);
+      bool classExtended = _extended.find(classId) != _extended.end();
+      size_t size = FlatPersistentClassInfo::classSize(clazz, classExtended);
       numBytes += size;
       }
 
@@ -226,13 +227,15 @@ TR_JITaaSClientPersistentCHTable::serializeModifications()
       {
       auto clazz = findClassInfo(classId);
       if (!clazz) continue;
+      bool classExtended = _extended.find(classId) != _extended.end();
       FlatPersistentClassInfo* info = (FlatPersistentClassInfo*)&data[bytesWritten];
-      bytesWritten += FlatPersistentClassInfo::serializeClass(clazz, info);
+      bytesWritten += FlatPersistentClassInfo::serializeClass(clazz, info, classExtended);
       count++;
       }
    CHTABLE_UPDATE_COUNTER(_numClassesUpdated, count);
 
    _dirty.clear();
+   _extended.clear();
    return data;
    }
 
@@ -259,12 +262,16 @@ void collectHierarchy(std::unordered_set<TR_PersistentClassInfo*> &out, TR_Persi
       collectHierarchy(out, c->getClassInfo());
    }
 
-size_t FlatPersistentClassInfo::classSize(TR_PersistentClassInfo *clazz)
+size_t FlatPersistentClassInfo::classSize(TR_PersistentClassInfo *clazz, bool serializeSubClasses)
    {
-   auto numSubClasses = clazz->_subClasses.getSize();
-   return sizeof(FlatPersistentClassInfo) + numSubClasses * sizeof(TR_OpaqueClassBlock*);
+   if (serializeSubClasses)
+      {
+      auto numSubClasses = clazz->_subClasses.getSize();
+      return sizeof(FlatPersistentClassInfo) + numSubClasses * sizeof(TR_OpaqueClassBlock*);
+      }
+   return sizeof(FlatPersistentClassInfo);
    }
-size_t FlatPersistentClassInfo::serializeClass(TR_PersistentClassInfo *clazz, FlatPersistentClassInfo* info)
+size_t FlatPersistentClassInfo::serializeClass(TR_PersistentClassInfo *clazz, FlatPersistentClassInfo* info, bool serializeSubClasses)
    {
    info->_classId = clazz->_classId;
    info->_visitedStatus = clazz->_visitedStatus;
@@ -276,13 +283,21 @@ size_t FlatPersistentClassInfo::serializeClass(TR_PersistentClassInfo *clazz, Fl
    TR_ASSERT(!clazz->getFieldInfo(), "field info not supported");
    info->_shouldNotBeNewlyExtended = clazz->_shouldNotBeNewlyExtended;
    int idx = 0;
-   for (TR_SubClass *c = clazz->getFirstSubclass(); c; c = c->getNext())
+
+   if (serializeSubClasses)
       {
-      TR_ASSERT(c->getClassInfo(), "Subclass info cannot be null (on client)");
-      TR_ASSERT(c->getClassInfo()->getClassId(), "Subclass cannot be null (on client)");
-      info->_subClasses[idx++] = c->getClassInfo()->getClassId();
+      for (TR_SubClass *c = clazz->getFirstSubclass(); c; c = c->getNext())
+         {
+         TR_ASSERT(c->getClassInfo(), "Subclass info cannot be null (on client)");
+         TR_ASSERT(c->getClassInfo()->getClassId(), "Subclass cannot be null (on client)");
+         info->_subClasses[idx++] = c->getClassInfo()->getClassId();
+         }
+      info->_numSubClasses = idx;
       }
-   info->_numSubClasses = idx;
+   else
+      {
+      info->_numSubClasses = 0;
+      }
    return sizeof(TR_OpaqueClassBlock*) * idx + sizeof(FlatPersistentClassInfo);
    }
 
@@ -368,6 +383,7 @@ TR_JITaaSClientPersistentCHTable::TR_JITaaSClientPersistentCHTable(TR_Persistent
    : TR_PersistentCHTable(trMemory)
    , _dirty(decltype(_dirty)::allocator_type(TR::Compiler->persistentAllocator()))
    , _remove(decltype(_remove)::allocator_type(TR::Compiler->persistentAllocator()))
+   , _extended(decltype(_extended)::allocator_type(TR::Compiler->persistentAllocator()))
    {
    }
 
@@ -491,6 +507,7 @@ TR_JITaaSClientPersistentCHTable::classGotExtended(
       TR_OpaqueClassBlock *subClassId)
    {
    markDirty(superClassId);
+   markExtended(superClassId);
    return TR_PersistentCHTable::classGotExtended(fe, persistentMemory, superClassId, subClassId);
    }
 
@@ -505,4 +522,9 @@ void TR_JITaaSClientPersistentCHTable::markDirty(TR_OpaqueClassBlock *clazz)
    {
    _dirty.insert(clazz);
    _remove.erase(clazz);
+   }
+
+void TR_JITaaSClientPersistentCHTable::markExtended(TR_OpaqueClassBlock *clazz)
+   {
+   _extended.insert(clazz);
    }
