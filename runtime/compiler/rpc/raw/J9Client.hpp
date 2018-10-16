@@ -31,6 +31,7 @@
 #include "j9.h"
 #include "ilgen/J9IlGeneratorMethodDetails.hpp"
 #include "rpc/raw/J9Stream.hpp"
+#include "env/VerboseLog.hpp"
 
 class SSLOutputStream;
 class SSLInputStream;
@@ -57,6 +58,7 @@ public:
    void write(T... args)
       {
       _cMsg.set_status(true);
+      TR_VerboseLog::write("client ");
       setArgs<T...>(_cMsg.mutable_data(), args...);
       writeBlocking(_cMsg);
       }

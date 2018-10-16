@@ -45,6 +45,8 @@ public:
    void write(J9ServerMessageType type, T... args)
       {
       setArgs<T...>(_sMsg.mutable_data(), args...);
+      TR_VerboseLog::vlogAcquire();
+      TR_VerboseLog::write("message_type=%d server ", type);
       _sMsg.set_type(type);
       writeBlocking(_sMsg);
       }

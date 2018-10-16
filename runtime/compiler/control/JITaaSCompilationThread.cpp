@@ -173,6 +173,11 @@ bool handleServerMessage(JITaaS::J9ClientStream *client, TR_J9VM *fe)
    releaseVMAccess(vmThread);
 
    auto response = client->read();
+   if (response != 0)
+      {
+      TR_VerboseLog::vlogAcquire();
+      TR_VerboseLog::write("message_type=%d ", response);
+      }
 
 
    // re-acquire VM access and check for possible class unloading
@@ -2119,6 +2124,8 @@ remoteCompile(
       // message just in case we block in the wite operation   
       releaseVMAccess(vmThread);
 
+      TR_VerboseLog::vlogAcquire();
+      TR_VerboseLog::write("build compile request ");
       client.buildCompileRequest(TR::comp()->getPersistentInfo()->getJITaaSId(), romMethodOffset, 
                                  method, clazz, compiler->getMethodHotness(), detailsStr, details.getType(), 
                                  unloadedClasses, classInfoTuple, optionsStr);

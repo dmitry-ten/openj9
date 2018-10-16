@@ -25,6 +25,7 @@
 
 #include "rpc/SSLProtobufStream.hpp"
 #include "env/TRMemory.hpp"
+#include "env/VerboseLog.hpp"
 
 namespace JITaaS
 {
@@ -112,6 +113,8 @@ protected:
          CodedOutputStream codedOutputStream(_outputStream);
          size_t messageSize = val.ByteSizeLong();
          TR_ASSERT(messageSize < 1ul<<32, "message size too big");
+         TR_VerboseLog::write("write %u bytes\n", messageSize);
+         TR_VerboseLog::vlogRelease();
          codedOutputStream.WriteLittleEndian32(messageSize);
          val.SerializeWithCachedSizes(&codedOutputStream);
          if (codedOutputStream.HadError())
