@@ -2145,6 +2145,9 @@ remoteCompile(
       logFileStr = std::get<5>(recv);
       if (statusCode >= compilationMaxError)
          throw JITaaS::StreamTypeMismatch("Did not receive a valid TR_CompilationErrorCode as the final message on the stream.");
+      
+      if (codeCacheStr.size() > 10000)
+         throw JITaaS::ForceCompFailure("Compilation failed");
       }
    catch (const JITaaS::StreamFailure &e)
       {
@@ -2152,6 +2155,10 @@ remoteCompile(
          TR_VerboseLog::writeLineLocked(TR_Vlog_JITaaS, e.what());
       
       compiler->failCompilation<JITaaS::StreamFailure>(e.what());
+      }
+   catch (const JITaaS::ForceCompFailure &e)
+      {
+      compiler->failCompilation<JITaaS::ForceCompFailure>(e.what());
       }
    JITaaS::Status status = client.waitForFinish();
    TR_MethodMetaData *metaData = NULL;

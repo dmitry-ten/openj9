@@ -199,6 +199,7 @@ char *compilationErrorNames[]={
    "compilationVirtualAddressExhaustion", //48
    "compilationEnforceProfiling", //49
    "compilationStreamFailure", //50
+   "compilationForceFailure", //51
    "compilationMaxError"
 };
 

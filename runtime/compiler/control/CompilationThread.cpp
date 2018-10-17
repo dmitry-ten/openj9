@@ -2161,6 +2161,12 @@ bool TR::CompilationInfo::shouldRetryCompilation(TR_MethodToBeCompiled *entry, T
                entry->_optimizationPlan->setDisableGCR(); // GCR isn't needed
                tryCompilingAgain = true;
                break;
+            case compilationForceFailure:
+               {
+               entry->_compilationAttemptsLeft = MAX_COMPILE_ATTEMPTS;
+               tryCompilingAgain = true;
+               }
+               break;
             case compilationNullSubstituteCodeCache:
             case compilationCodeMemoryExhausted:
             case compilationCodeCacheError:
@@ -10703,6 +10709,10 @@ TR::CompilationInfoPerThreadBase::processException(
       {
       // no need to set error code here because error code is set
       // in remoteCompile when the compilation failed
+      }
+   catch (const JITaaS::ForceCompFailure &e)
+      {
+      _methodBeingCompiled->_compErrCode = compilationForceFailure;
       }
    catch (...)
       {

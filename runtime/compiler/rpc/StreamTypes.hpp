@@ -71,6 +71,16 @@ namespace JITaaS
    private:
       std::string _message;
       };
+   
+   class ForceCompFailure: public virtual std::exception
+      {
+   public:
+      ForceCompFailure() : _message("Compilation failed on purpose") { }
+      ForceCompFailure(std::string message) : _message(message) { }
+      virtual const char* what() const throw() { return _message.c_str(); }
+   private:
+      std::string _message;
+      };
 }
 
 #endif // RPC_TYPES_H
