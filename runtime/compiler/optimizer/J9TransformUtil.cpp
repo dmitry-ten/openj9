@@ -1010,6 +1010,7 @@ J9::TransformUtil::transformIndirectLoad(TR::Compilation *comp, TR::Node *node)
 bool
 J9::TransformUtil::transformDirectLoad(TR::Compilation *comp, TR::Node *node)
    {
+   return false;
    TR_ASSERT(node->getOpCode().isLoadVarDirect(), "Expecting direct load; found %s %p", node->getOpCode().getName(), node);
    TR::SymbolReference *symRef = node->getSymbolReference();
    TR::Symbol           *sym    = node->getSymbol();
@@ -1196,6 +1197,7 @@ J9::TransformUtil::transformIndirectLoadChainAt(TR::Compilation *comp, TR::Node 
    // bypass this method, because baseReferenceLocation is often an address of a pointer
    // on server's stack, which causes a segfault when getStaticReferenceFieldAtAddress is called
    // on the client.
+   return false;
    if (comp->getPersistentInfo()->getJITaaSMode() == SERVER_MODE)
       {
       return false;
@@ -1299,6 +1301,7 @@ J9::TransformUtil::transformIndirectLoadChainImpl(TR::Compilation *comp, TR::Nod
    {
    TR_J9VMBase *fej9 = comp->fej9();
    
+   return false;
    if (comp->compileRelocatableCode() || comp->getPersistentInfo()->getJITaaSMode() == SERVER_MODE)
       {
       return false;

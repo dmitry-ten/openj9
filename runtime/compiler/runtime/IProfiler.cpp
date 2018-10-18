@@ -3185,6 +3185,14 @@ TR_IProfiler::getCGProfilingData(TR_OpaqueMethodBlock *method, uint32_t byteCode
 void
 TR_IProfiler::setCallCount(TR_OpaqueMethodBlock *method, int32_t bcIndex, int32_t count, TR::Compilation * comp)
    {
+   uintptr_t methodStart = TR::Compiler->mtd.bytecodeStart(method);
+   uint8_t bytecode = *((uint8_t*)(methodStart+bcIndex));
+   // The following bytecode types are tracked by IProfiler, so we
+   // don't need to artificially set a call count for them
+   if (bytecode == JBinvokevirtual ||
+       bytecode == JBinvokeinterface ||
+       bytecode == JBinvokeinterface2)
+      return;
    TR_IPBytecodeHashTableEntry *entry = profilingSample(method, bcIndex, comp, 0, true);
    if (entry && entry->asIPBCDataCallGraph())
       {
