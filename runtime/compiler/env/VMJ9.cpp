@@ -523,7 +523,7 @@ TR_J9VMBase::getCurrentVMThread()
 bool
 TR_J9VMBase::createGlobalFrontEnd(J9JITConfig * jitConfig, TR::CompilationInfo * compInfo)
    {
-   TR_ASSERT(!jitConfig->compilationInfo, "Global front end already exists");
+   TR_ASSERT(!TR_J9VMBase::getPrivateConfig(jitConfig)->compilationInfo, "Global front end already exists");
    TR_J9VM * vmWithoutThreadInfo = 0;
 
 #if defined(J9VM_INTERP_AOT_COMPILE_SUPPORT)
@@ -556,7 +556,7 @@ TR_J9VMBase::createGlobalFrontEnd(J9JITConfig * jitConfig, TR::CompilationInfo *
       return false;
       }
 
-   jitConfig->compilationInfo = vmWithoutThreadInfo;
+   TR_J9VMBase::getPrivateConfig(jitConfig)->compilationInfo = vmWithoutThreadInfo;
 
 #if defined(J9VM_INTERP_AOT_COMPILE_SUPPORT)
    pointer_cast<J9AOTConfig *>(jitConfig)->aotCompilationInfo = aotVMWithoutThreadInfo;
@@ -574,7 +574,7 @@ TR_J9VMBase::get(J9JITConfig * jitConfig, J9VMThread * vmThread, VM_TYPE vmType)
 #endif
 
    TR_ASSERT(vmThread || vmType==DEFAULT_VM, "Specific VM type ==> must supply vmThread");
-   TR_J9VMBase * vmWithoutThreadInfo = static_cast<TR_J9VMBase *>(jitConfig->compilationInfo);
+   TR_J9VMBase * vmWithoutThreadInfo = static_cast<TR_J9VMBase *>(TR_J9VMBase::getPrivateConfig(jitConfig)->compilationInfo);
 #if defined(J9VM_INTERP_AOT_COMPILE_SUPPORT)
    TR_J9VMBase * aotVMWithoutThreadInfo = static_cast<TR_J9VMBase *>(pointer_cast<J9AOTConfig *>(jitConfig)->aotCompilationInfo);
 #endif
@@ -1916,12 +1916,12 @@ TR_J9VMBase::getOffsetOfIndexableSizeField()
 TR_Debug *
 TR_J9VMBase::createDebug(TR::Compilation *comp)
    {
-   if (!_jitConfig->tracingHook)
+   if (!TR_J9VMBase::getPrivateConfig(_jitConfig)->tracingHook)
       {
-      _jitConfig->tracingHook = (void*) (TR_CreateDebug_t)createDebugObject;
+      TR_J9VMBase::getPrivateConfig(_jitConfig)->tracingHook = (void*) (TR_CreateDebug_t)createDebugObject;
       }
 
-   TR_Debug *result = ((TR_CreateDebug_t)_jitConfig->tracingHook)(comp);
+   TR_Debug *result = ((TR_CreateDebug_t)TR_J9VMBase::getPrivateConfig(_jitConfig)->tracingHook)(comp);
 
    return result;
    }
@@ -8852,7 +8852,7 @@ TR_J9SharedCacheVM::getDesignatedCodeCache(TR::Compilation *comp)
    // For AOT we need some alignment
    if (codeCache)
       {
-      codeCache->alignWarmCodeAlloc(_jitConfig->codeCacheAlignment - 1);
+      codeCache->alignWarmCodeAlloc(TR_J9VMBase::getPrivateConfig(_jitConfig)->codeCacheAlignment - 1);
 
       // For AOT we must install the beginning of the code cache
       comp->setRelocatableMethodCodeStart((uint32_t *)codeCache->getWarmCodeAlloc());
