@@ -191,6 +191,13 @@ bool handleServerMessage(JITaaS::J9ClientStream *client, TR_J9VM *fe)
       comp->failCompilation<TR::CompilationInterrupted>("Compilation interrupted in handleServerMessage");
       }
 
+
+   if (TR::Options::getVerboseOption(TR_VerboseJITaaS))
+      {
+         const ::google::protobuf::EnumDescriptor *descriptor = JITaaS::J9ServerMessageType_descriptor();
+         TR_VerboseLog::writeLineLocked(TR_Vlog_JITaaS,"Message received by client %s(%d) while compiling %s on compThread = %d", descriptor->FindValueByNumber(response)->name().c_str(), response, comp->signature(), compInfoPT->getCompThreadId());
+      }
+
    // update statistics for server message type
    serverMsgTypeCount[response] += 1;
 
