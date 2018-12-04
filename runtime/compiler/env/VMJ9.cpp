@@ -4246,6 +4246,7 @@ static bool foldFinalFieldsIn(char *className, int32_t classNameLength, TR::Comp
 bool
 TR_J9VMBase::canDereferenceAtCompileTime(TR::SymbolReference *fieldRef, TR::Compilation *comp)
    {
+   return false;
    // Note that this query only looks at the field shadow symref; it says
    // nothing about the underlying object in which fieldRef is located.  For
    // example, if the field is a java field, this can return true, yet the

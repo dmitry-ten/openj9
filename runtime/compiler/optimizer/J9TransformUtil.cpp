@@ -1251,6 +1251,7 @@ J9::TransformUtil::transformIndirectLoadChainAt(TR::Compilation *comp, TR::Node 
    // bypass this method, because baseReferenceLocation is often an address of a pointer
    // on server's stack, which causes a segfault when getStaticReferenceFieldAtAddress is called
    // on the client.
+   return false;
    if (comp->getPersistentInfo()->getJITaaSMode() == SERVER_MODE)
       {
       return false;

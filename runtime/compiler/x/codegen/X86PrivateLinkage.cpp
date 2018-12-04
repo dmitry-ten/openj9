@@ -1787,7 +1787,7 @@ TR::Register *TR::X86PrivateLinkage::buildIndirectDispatch(TR::Node *callNode)
                int32_t signatureLen = strlen(j2iSignature);
                virtualThunk = fej9->getJ2IThunk(j2iSignature, signatureLen, comp());
                // in server mode, we always need to regenerate the thunk inside the code cache for this compilation
-               if (!virtualThunk || comp()->getPersistentInfo()->getJITaaSMode() == SERVER_MODE)
+               if (true || !virtualThunk || comp()->getPersistentInfo()->getJITaaSMode() == SERVER_MODE)
                   {
                   virtualThunk = fej9->setJ2IThunk(j2iSignature, signatureLen,
                      generateVirtualIndirectThunk(
@@ -1797,7 +1797,7 @@ TR::Register *TR::X86PrivateLinkage::buildIndirectDispatch(TR::Node *callNode)
                break;
             default:
                // in server mode, we always need to regenerate the thunk inside the code cache for this compilation
-               if (fej9->needsInvokeExactJ2IThunk(callNode, comp()) || comp()->getPersistentInfo()->getJITaaSMode() == SERVER_MODE)
+               if (fej9->needsInvokeExactJ2IThunk(callNode, comp()))
                   {
                   TR_J2IThunk *thunk = generateInvokeExactJ2IThunk(callNode, methodSymbol->getMethod()->signatureChars());
                   fej9->setInvokeExactJ2IThunk(thunk, comp());
@@ -1809,7 +1809,7 @@ TR::Register *TR::X86PrivateLinkage::buildIndirectDispatch(TR::Node *callNode)
          {
          virtualThunk = fej9->getJ2IThunk(methodSymbol->getMethod(), comp());
          // in server mode, we always need to regenerate the thunk inside the code cache for this compilation
-         if (!virtualThunk || comp()->getPersistentInfo()->getJITaaSMode() == SERVER_MODE)
+         if (true || !virtualThunk || comp()->getPersistentInfo()->getJITaaSMode() == SERVER_MODE)
             virtualThunk = fej9->setJ2IThunk(methodSymbol->getMethod(), generateVirtualIndirectThunk(callNode), comp());
          }
 
@@ -1830,7 +1830,7 @@ TR::Register *TR::X86PrivateLinkage::buildIndirectDispatch(TR::Node *callNode)
 
       TR::LabelSymbol *picMismatchLabel = NULL;
       TR_ScratchList<TR::X86PICSlot> *profiledTargets = site.getProfiledTargets();
-      if (comp()->getPersistentInfo()->getJITaaSMode() != SERVER_MODE && profiledTargets)
+      if (false && comp()->getPersistentInfo()->getJITaaSMode() != SERVER_MODE && profiledTargets)
          {
          ListIterator<TR::X86PICSlot> i(profiledTargets);
          TR::X86PICSlot *picSlot = i.getFirst();
@@ -1986,7 +1986,7 @@ void TR::X86PrivateLinkage::buildDirectCall(TR::SymbolReference *methodSymRef, T
       cg()->stopUsingRegister(nativeMethodReg);
       }
    else if (methodSymRef->isUnresolved() || methodSymbol->isInterpreted()
-            || ((cg()->comp()->compileRelocatableCode() || cg()->comp()->getPersistentInfo()->getJITaaSMode() == SERVER_MODE) && !methodSymbol->isHelper()) )
+            || ((cg()->comp()->compileRelocatableCode() || cg()->comp()->getPersistentInfo()->getJITaaSMode() == SERVER_MODE || true) && !methodSymbol->isHelper()) )
       {
       TR::LabelSymbol *label   = generateLabelSymbol(cg());
 
