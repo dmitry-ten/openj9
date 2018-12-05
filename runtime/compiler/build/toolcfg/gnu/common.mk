@@ -486,6 +486,7 @@ SOLINK_FLAGS+=$(SOLINK_FLAGS_EXTRA)
 #
 PROTO_CMD?=protoc
 
-SOLINK_SLINK+=protobuf ssl
+SOLINK_SLINK_STATIC=-l:libprotobuf.a -l:libssl.a -l:libcrypto.a
+SOLINK_SLINK+=
 
 CXX_DEFINES+=GOOGLE_PROTOBUF_NO_RTTI
