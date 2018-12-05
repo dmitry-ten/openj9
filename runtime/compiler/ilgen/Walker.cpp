@@ -7840,6 +7840,7 @@ void TR_J9ByteCodeIlGenerator::genFullFence(TR::Node *node)
 
 void TR_J9ByteCodeIlGenerator::performClassLookahead(TR_PersistentClassInfo *classInfo)
    {
+   return;
    // Do not perform class lookahead when peeking (including recursive class lookahead)
    //
    if (comp()->isPeekingMethod())

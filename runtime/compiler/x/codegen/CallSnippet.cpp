@@ -992,7 +992,9 @@ uint8_t *TR::X86CallSnippet::emitSnippetBody()
       //the desired invoke bytecode.
       if (!isJitInduceOSRCall)
          {
-         intptrj_t ramMethod = (intptr_t)methodSymbol->getMethodAddress();
+         intptrj_t ramMethod = !methodSymbol->isInterpreted() ?
+                                           (intptr_t)methodSymRef->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier() :
+                                                                          (intptr_t)methodSymbol->getMethodAddress();
 
          if (TR::Compiler->target.is64Bit())
             {

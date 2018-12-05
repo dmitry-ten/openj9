@@ -1781,7 +1781,7 @@ TR::Register *TR::X86PrivateLinkage::buildIndirectDispatch(TR::Node *callNode)
 
       TR::LabelSymbol *picMismatchLabel = NULL;
       TR_ScratchList<TR::X86PICSlot> *profiledTargets = site.getProfiledTargets();
-      if (profiledTargets)
+      if (false && profiledTargets)
          {
          ListIterator<TR::X86PICSlot> i(profiledTargets);
          TR::X86PICSlot *picSlot = i.getFirst();
@@ -1931,7 +1931,7 @@ void TR::X86PrivateLinkage::buildDirectCall(TR::SymbolReference *methodSymRef, T
       cg()->stopUsingRegister(nativeMethodReg);
       }
    else if (methodSymRef->isUnresolved() || methodSymbol->isInterpreted()
-            || (cg()->comp()->compileRelocatableCode() && !methodSymbol->isHelper()) )
+            || ((true || cg()->comp()->compileRelocatableCode()) && !methodSymbol->isHelper()) )
       {
       TR::LabelSymbol *label   = generateLabelSymbol(cg());
 

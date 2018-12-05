@@ -317,7 +317,7 @@ public:
    virtual bool supportsEmbeddedHeapBounds()  { return true; }
    virtual bool supportsFastNanoTime();
    virtual bool supportsGuardMerging()        { return true; }
-   virtual bool canDevirtualizeDispatch()     { return true; }
+   virtual bool canDevirtualizeDispatch()     { return false; }
    virtual bool doStringPeepholing()          { return true; }
 
    virtual bool forceUnresolvedDispatch() { return false; }
@@ -432,6 +432,7 @@ public:
 
    virtual bool canRelocateDirectNativeCalls() {return true; }
 
+   // virtual bool storeOffsetToArgumentsInVirtualIndirectThunks() { return true; }
    virtual bool storeOffsetToArgumentsInVirtualIndirectThunks() { return false; }
 
    virtual bool               tlhHasBeenCleared();
