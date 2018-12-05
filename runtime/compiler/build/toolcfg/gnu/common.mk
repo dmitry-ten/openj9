@@ -496,7 +496,8 @@ ifdef JITAAS_USE_GRPC
    CXX_DEFINES+=JITAAS_USE_GRPC
 else
    JITAAS_USE_RAW_SOCKETS=1
-   SOLINK_SLINK+=protobuf ssl
+   SOLINK_SLINK_STATIC=-l:libprotobuf.a -l:libssl.a -l:libcrypto.a
+   SOLINK_SLINK+=
    CXX_DEFINES+=JITAAS_USE_RAW_SOCKETS
 endif
 
