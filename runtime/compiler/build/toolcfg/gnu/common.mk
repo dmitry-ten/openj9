@@ -519,12 +519,11 @@ SOLINK_FLAGS+=$(SOLINK_FLAGS_EXTRA)
 #
 PROTO_CMD?=protoc
 
+SOLINK_SLINK_STATIC=-l:libprotobuf.a
 CXX_DEFINES+=GOOGLE_PROTOBUF_NO_RTTI
 
-ifeq ($(JITAAS_ENABLE_SSL),)
-    SOLINK_SLINK+=protobuf
-else
-    SOLINK_SLINK+=protobuf ssl
+ifneq ($(JITAAS_ENABLE_SSL),)
+    SOLINK_SLINK+=ssl
 
     ifneq ($(OPENSSL_CFLAGS),)
         ADD_OPENSSL_CFLAGS=false
