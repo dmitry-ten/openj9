@@ -2196,17 +2196,15 @@ TR_J9InlinerPolicy::adjustFanInSizeInWeighCallSite(int32_t& weight,
       static const float otherBucketThreshold = (qqq) ? (float)  (atoi (qqq) /100.0) : FANIN_OTHER_BUCKET_THRESHOLD ;
 
       //convenience
-      TR_ResolvedJ9Method *resolvedJ9Callee = (TR_ResolvedJ9Method *) callee;
-      TR_ResolvedJ9Method *resolvedJ9Caller = (TR_ResolvedJ9Method *) caller;
+      TR_OpaqueMethodBlock* j9methodCallee = callee->getPersistentIdentifier();
 
+      uint32_t numCallers = 0, totalWeight = 0, fanInWeight = 0;
+      comp()->fej9()->getNumberofCallersAndTotalWeight(j9methodCallee,&numCallers,&totalWeight);
 
-      uint32_t numCallers = 0, totalWeight = 0, fanInWeight = 0, otherBucketWeight = 0;
-      resolvedJ9Callee->getFaninInfo(&numCallers, &totalWeight, &otherBucketWeight);
-
-      if (numCallers < MIN_NUM_CALLERS || (totalWeight > 0 && otherBucketWeight * 1.0 / totalWeight < otherBucketThreshold))
+      if (numCallers < MIN_NUM_CALLERS || (totalWeight > 0 && comp()->fej9()->getOtherBucketWeight(j9methodCallee)*1.0 / totalWeight < otherBucketThreshold))
          return;
 
-      bool hasCaller = resolvedJ9Callee->getCallerWeight(resolvedJ9Caller, &fanInWeight, bcIndex); 
+      bool hasCaller = comp()->fej9()->getCallerWeight(j9methodCallee,caller->getPersistentIdentifier(), &fanInWeight, bcIndex);
 
       if (size >= 0 && totalWeight && fanInWeight)
          {
@@ -2311,20 +2309,19 @@ TR_J9InlinerPolicy::adjustFanInSizeInExceedsSizeThreshold(int bytecodeSize,
       return false;
       }
 
-   TR_ResolvedJ9Method *resolvedJ9Callee = (TR_ResolvedJ9Method *) callee;
-   TR_ResolvedJ9Method *resolvedJ9Caller = (TR_ResolvedJ9Method *) caller;
+   TR_OpaqueMethodBlock* j9methodCallee = callee->getPersistentIdentifier();
 
-   uint32_t numCallers = 0, totalWeight = 0, otherBucketWeight = 0;
+   uint32_t numCallers = 0, totalWeight = 0;
    float dynamicFanInRatio = 0.0;
-   resolvedJ9Callee->getFaninInfo(&numCallers, &totalWeight, &otherBucketWeight);
+   comp()->fej9()->getNumberofCallersAndTotalWeight(j9methodCallee,&numCallers,&totalWeight);
 
-   if (numCallers < MIN_NUM_CALLERS || (totalWeight > 0 && otherBucketWeight * 1.0 / totalWeight < otherBucketThreshold))
+   if (numCallers < MIN_NUM_CALLERS || (totalWeight > 0 && comp()->fej9()->getOtherBucketWeight(j9methodCallee)*1.0 / totalWeight < otherBucketThreshold))
      return false;
 
 
 
    uint32_t weight = 0;
-   bool hasCaller = resolvedJ9Callee->getCallerWeight(resolvedJ9Caller, &weight, bcIndex);
+   bool hasCaller = comp()->fej9()->getCallerWeight(j9methodCallee,caller->getPersistentIdentifier(), &weight, bcIndex);
 
    /*
     * We assume that if the caller lands in the other bucket it is not worth trouble inlining
@@ -4121,7 +4118,7 @@ int32_t TR_MultipleCallTargetInliner::scaleSizeBasedOnBlockFrequency(int32_t byt
 bool TR_MultipleCallTargetInliner::isLargeCompiledMethod(TR_ResolvedMethod *calleeResolvedMethod, int32_t bytecodeSize, int32_t callerBlockFrequency)
    {
    TR_OpaqueMethodBlock* methodCallee = calleeResolvedMethod->getPersistentIdentifier();
-   if (!calleeResolvedMethod->isInterpreted())
+   if (TR::Compiler->mtd.isCompiledMethod(methodCallee))
       {
       TR_PersistentJittedBodyInfo * bodyInfo = ((TR_ResolvedJ9Method*) calleeResolvedMethod)->getExistingJittedBodyInfo();
       if ((comp()->getMethodHotness() <= warm))
@@ -4152,7 +4149,7 @@ bool TR_MultipleCallTargetInliner::isLargeCompiledMethod(TR_ResolvedMethod *call
                }
 
             uint32_t numCallers = 0, totalWeight = 0;
-            ((TR_ResolvedJ9Method *) calleeResolvedMethod)->getFaninInfo(&numCallers, &totalWeight);
+            comp()->fej9()->getNumberofCallersAndTotalWeight(methodCallee, &numCallers, &totalWeight);
             if ((numCallers > veryLargeCompiledMethodFaninThreshold) &&
                 (bytecodeSize > veryLargeCompiledMethodThreshold))
                {
