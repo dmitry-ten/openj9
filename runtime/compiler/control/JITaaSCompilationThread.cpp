@@ -2050,7 +2050,8 @@ bool handleServerMessage(JITaaS::J9ClientStream *client, TR_J9VM *fe)
          auto bcIndex = std::get<1>(recv);
          auto count = std::get<2>(recv);
          TR_IProfiler * iProfiler = fe->getIProfiler();
-         iProfiler->setCallCount(method, bcIndex, count, comp);
+         if (iProfiler)
+            iProfiler->setCallCount(method, bcIndex, count, comp);
          client->write(JITaaS::Void());
          }
          break;
