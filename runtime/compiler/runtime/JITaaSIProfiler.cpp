@@ -28,6 +28,8 @@
 #include "ilgen/J9ByteCodeIterator.hpp"
 #include "env/StackMemoryRegion.hpp"
 #include "bcnames.h"
+#include <execinfo.h>
+#define BT_BUF_SIZE 10
 
 TR_JITaaSIProfiler *
 TR_JITaaSIProfiler::allocate(J9JITConfig *jitConfig)
@@ -177,6 +179,15 @@ TR_JITaaSIProfiler::profilingSample(TR_OpaqueMethodBlock *method, uint32_t byteC
    {
    if (addIt)
       return nullptr; // Server should not create any samples
+
+   TR_VerboseLog::vlogAcquire();
+   fprintf(stderr, "\nEntering profilingSample\n");
+   void *buffer[BT_BUF_SIZE];
+   int nptrs = backtrace(buffer, BT_BUF_SIZE);
+   char **stacks = backtrace_symbols(buffer, nptrs);
+   for(int i=0; i < BT_BUF_SIZE; i++)
+      fprintf(stderr, "%s\n", stacks[i]);
+   TR_VerboseLog::vlogRelease();
 
    ClientSessionData *clientSessionData = comp->fej9()->_compInfoPT->getClientData();
    TR_IPBytecodeHashTableEntry *entry = nullptr;
