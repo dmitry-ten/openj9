@@ -1187,8 +1187,6 @@ J9::Options::fePreProcess(void * base)
       self()->setOption(TR_DisableTraps);
    #endif
 
-   self()->setOption(TR_DisableGuardedStaticFinalFieldFolding);
-
    if (self()->getOption(TR_AggressiveOpts))
       self()->setOption(TR_DontDowngradeToCold, true);
 
