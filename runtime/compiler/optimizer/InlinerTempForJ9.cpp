@@ -303,6 +303,8 @@ TR_J9InlinerPolicy::mustBeInlinedEvenInDebug(TR_ResolvedMethod * calleeMethod, T
          // call to invokeExactTargetAddress are generated out of thin air by our JSR292
          // implementation, but we never want the VM or anyone else to know this so we must
          // always inlne the implementation
+         case TR::java_lang_invoke_MethodHandle_asType:
+            return true;
          case TR::java_lang_invoke_MethodHandle_invokeExactTargetAddress:
             {
             TR::TreeTop *scanTT = callNodeTreeTop->getNextTreeTop();
@@ -354,11 +356,9 @@ TR_J9InlinerPolicy::alwaysWorthInlining(TR_ResolvedMethod * calleeMethod, TR::No
    if (calleeMethod->isDAAWrapperMethod())
       return true;
 
-   if (TR_J9MethodBase::isVarHandleOperationMethod(calleeMethod->convertToMethod()->getMandatoryRecognizedMethod()))
-      return true;
-
    switch (calleeMethod->convertToMethod()->getMandatoryRecognizedMethod())
       {
+      case TR::java_lang_invoke_MethodHandle_asType:
       case TR::java_lang_invoke_MethodHandle_invokeExactTargetAddress:
          return true;
       default:
@@ -420,14 +420,6 @@ TR_J9InlinerPolicy::alwaysWorthInlining(TR_ResolvedMethod * calleeMethod, TR::No
       {
       return true;
       }
-
-   int32_t length = calleeMethod->classNameLength();
-   char* className = calleeMethod->classNameChars();
-
-   if (length == 24 && !strncmp(className, "jdk/internal/misc/Unsafe", 24))
-      return true;
-   else if (length == 15 && !strncmp(className, "sun/misc/Unsafe", 15))
-      return true;
 
    return false;
    }
@@ -2011,8 +2003,6 @@ TR_J9InlinerPolicy::inlineUnsafeCall(TR::ResolvedMethodSymbol *calleeSymbol, TR:
       case TR::sun_misc_Unsafe_compareAndSwapInt_jlObjectJII_Z:
       case TR::sun_misc_Unsafe_compareAndSwapLong_jlObjectJJJ_Z:
       case TR::sun_misc_Unsafe_compareAndSwapObject_jlObjectJjlObjectjlObject_Z:
-         if (callNode->isSafeForCGToFastPathUnsafeCall())
-            return false;
          switch (callerSymbol->castToMethodSymbol()->getRecognizedMethod())
             {
             case TR::java_util_concurrent_ConcurrentHashMap_addCount:
@@ -4928,11 +4918,15 @@ bool TR_J9InlinerUtil::needTargetedInlining(TR::ResolvedMethodSymbol *callee)
    // Trees from archetype specimens may not match the archetype method's bytecodes,
    // so there may be some calls things that inliner missed.
    //
+   // We also inline again if MethodHandle.asType has been inlined because VP might be able to
+   // prove invokeHandleGeneric is invoke exact
+   //
    // Tactically, we also inline again based on hasMethodHandleInvokes because EstimateCodeSize
    // doesn't yet cope with invokeHandle, invokeHandleGeneric, and invokeDynamic (but it should).
    //
    if (callee->getMethod()->isArchetypeSpecimen() ||
-       callee->hasMethodHandleInvokes())
+       callee->hasMethodHandleInvokes() ||
+       callee->getRecognizedMethod() == TR::java_lang_invoke_MethodHandle_asType)
       return true;
    return false;
    }
