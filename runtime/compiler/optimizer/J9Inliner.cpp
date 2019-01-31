@@ -502,8 +502,10 @@ TR_OpaqueClassBlock* TR_J9VirtualCallSite::getClassFromMethod ()
    return _initialCalleeMethod->classOfMethod();
    }
 
+uint32_t findCallSiteTargetVirtualCount = 0;
 bool TR_J9VirtualCallSite::findCallSiteTarget(TR_CallStack *callStack, TR_InlinerBase* inliner)
    {
+   fprintf(stderr, "findCallSiteTargetVirtualCount=%lu\n", findCallSiteTargetVirtualCount++);
    if (hasFixedTypeArgInfo())
       {
       bool result = findCallTargetUsingArgumentPreexistence(inliner);
@@ -558,8 +560,10 @@ static TR_ResolvedMethod * findSingleImplementer(
    }
 */
 
+uint32_t findCallSiteTargetInterfaceCount = 0;
 bool TR_J9InterfaceCallSite::findCallSiteTarget (TR_CallStack *callStack, TR_InlinerBase* inliner)
    {
+   fprintf(stderr, "findCallSiteTargetInterfaceCount=%lu\n", findCallSiteTargetInterfaceCount++);
    static char *minimizedInlineJIT = feGetEnv("TR_JITInlineMinimized");
 
    if (minimizedInlineJIT)

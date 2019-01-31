@@ -113,9 +113,11 @@ TR_EstimateCodeSize::calculateCodeSize(TR_CallTarget *calltarget, TR_CallStack *
    return retval;
    }
 
+uint32_t isInlineableCount = 0;
 bool
 TR_EstimateCodeSize::isInlineable(TR_CallStack * prevCallStack, TR_CallSite *callsite)
    {
+   fprintf(stderr, "isInlineableCount=%lu\n", isInlineableCount++);
    TR_ASSERT(callsite, "Estimate Code Size: callsite is null!");
 
    heuristicTrace(tracer(),"Depth %d: Created Call Site %p for call found at bc index %d. Signature %s  Looking for call targets.",
