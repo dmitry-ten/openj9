@@ -1053,8 +1053,14 @@ void TR_ProfileableCallSite::findSingleProfiledMethod(ListIterator<TR_ExtraAddre
       traceMsg(comp(), "Failed to find any methods compatible with callsite class %p signature %s\n", callSiteClass, TR::Compiler->cls.classSignature(comp(), callSiteClass, comp()->trMemory()));
    }
 
+uint32_t profiledCallTargetsCount = 0;
+uint32_t profiledReceiverCount = 0;
 bool TR_ProfileableCallSite::findProfiledCallTargets (TR_CallStack *callStack, TR_InlinerBase* inliner)
    {
+   profiledCallTargetsCount++;
+   if (profiledCallTargetsCount % 100 == 0)
+      fprintf(stderr, "profiledCallTargetsCount=%lu\n", profiledCallTargetsCount);
+
    heuristicTrace(inliner->tracer(),"Looking for a profiled Target %p \n", this);
    TR_ValueProfileInfoManager * profileManager = TR_ValueProfileInfoManager::get(comp());
 
@@ -1094,6 +1100,10 @@ bool TR_ProfileableCallSite::findProfiledCallTargets (TR_CallStack *callStack, T
          }
       }
 
+   
+   profiledReceiverCount++;
+   if (profiledReceiverCount % 100  == 0)
+      fprintf(stderr, "profiledReceiverCount=%lu\n", profiledReceiverCount);
    findSingleProfiledReceiver(sortedValuesIt, valueInfo, inliner);
    if (!numTargets())
       {
