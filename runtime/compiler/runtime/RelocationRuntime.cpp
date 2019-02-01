@@ -1101,6 +1101,7 @@ TR_SharedCacheRelocationRuntime::useDFPHardware(TR_FrontEnd *fe)
 void
 TR_SharedCacheRelocationRuntime::incompatibleCache(U_32 module_name, U_32 reason, char *assumeMessage)
    {
+TR_ASSERT(false, "incompatibleCache");
    TR_ASSERT(false, assumeMessage);
    if (javaVM()->sharedClassConfig->verboseFlags & J9SHR_VERBOSEFLAG_ENABLE_VERBOSE)
       {
@@ -1112,6 +1113,7 @@ TR_SharedCacheRelocationRuntime::incompatibleCache(U_32 module_name, U_32 reason
 bool
 TR_SharedCacheRelocationRuntime::generateError(char *assumeMessage)
    {
+TR_ASSERT(false, "generateError");
    TR_ASSERT(false, assumeMessage);
    incompatibleCache(J9NLS_RELOCATABLE_CODE_WRONG_HARDWARE, assumeMessage);
    return false;
@@ -1120,6 +1122,7 @@ TR_SharedCacheRelocationRuntime::generateError(char *assumeMessage)
 void
 TR_SharedCacheRelocationRuntime::checkAOTHeaderFlags(TR_FrontEnd *fe, TR_AOTHeader *hdrInCache, intptr_t featureFlags)
    {
+TR_ASSERT(false, "checkAOTHeaderFlags");
    TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
    bool defaultMessage = true;
 
@@ -1409,6 +1412,7 @@ TR_SharedCacheRelocationRuntime::isRomClassForMethodInSharedCache(J9Method *meth
 TR_YesNoMaybe
 TR_SharedCacheRelocationRuntime::isMethodInSharedCache(J9Method *method, J9JavaVM *pjavaVM)
    {
+TR_ASSERT(false, "isMethodInSharedCache");
    if (isRomClassForMethodInSharedCache(method, javaVM()))
       return TR_maybe;
    else
@@ -1418,6 +1422,7 @@ TR_SharedCacheRelocationRuntime::isMethodInSharedCache(J9Method *method, J9JavaV
 TR_OpaqueClassBlock *
 TR_SharedCacheRelocationRuntime::getClassFromCP(J9VMThread *vmThread, J9JavaVM *pjavaVM, J9ConstantPool *constantPool, I_32 cpIndex, bool isStatic)
    {
+TR_ASSERT(false, "getClassFromCP");
    J9JITConfig *jitConfig = vmThread->javaVM->jitConfig;
    TR_J9VMBase *fe = TR_J9VMBase::get(jitConfig, vmThread);
    TR::VMAccessCriticalSection getClassFromCP(fe);

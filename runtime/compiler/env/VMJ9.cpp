@@ -8467,6 +8467,7 @@ TR_J9VM::dereferenceStaticFinalAddress(void *staticAddress, TR::DataType address
 bool
 TR_J9SharedCacheVM::isClassVisible(TR_OpaqueClassBlock * sourceClass, TR_OpaqueClassBlock * destClass)
    {
+   TR_ASSERT(false, "isClassVisible");
    TR::Compilation* comp = _compInfo->getCompInfoForCompOnAppThread() ? _compInfo->getCompInfoForCompOnAppThread()->getCompilation() : _compInfoPT->getCompilation();
    TR_ASSERT(comp, "Should be called only within a compilation");
 
@@ -8497,6 +8498,7 @@ TR_J9SharedCacheVM::isClassVisible(TR_OpaqueClassBlock * sourceClass, TR_OpaqueC
 bool
 TR_J9SharedCacheVM::stackWalkerMaySkipFrames(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *methodClass)
    {
+   TR_ASSERT(false, "stackWalkerMaySkipFrames");
    bool skipFrames = TR_J9VM::stackWalkerMaySkipFrames(method, methodClass);
    TR::Compilation *comp = TR::comp();
    if (comp && comp->getOption(TR_UseSymbolValidationManager))
@@ -8527,6 +8529,7 @@ TR_J9SharedCacheVM::isMethodExitTracingEnabled(TR_OpaqueMethodBlock *method)
 bool
 TR_J9SharedCacheVM::traceableMethodsCanBeInlined()
    {
+   TR_ASSERT(false, "traceableMethodCanBeInlined");
    return true;
    }
 
@@ -8547,12 +8550,14 @@ TR_J9SharedCacheVM::canMethodExitEventBeHooked()
 bool
 TR_J9SharedCacheVM::methodsCanBeInlinedEvenIfEventHooksEnabled()
    {
+   TR_ASSERT(false, "methodsCanBeInlinedEvenIfEventHooksEnabled");
    return true;
    }
 
 int32_t
 TR_J9SharedCacheVM::getJavaLangClassHashCode(TR::Compilation * comp, TR_OpaqueClassBlock * clazzPointer, bool &hashCodeComputed)
    {
+   TR_ASSERT(false, "getJavaLangClassHashCode");
    hashCodeComputed = false;
    return 0;
    }
@@ -8560,6 +8565,7 @@ TR_J9SharedCacheVM::getJavaLangClassHashCode(TR::Compilation * comp, TR_OpaqueCl
 bool
 TR_J9SharedCacheVM::javaLangClassGetModifiersImpl(TR_OpaqueClassBlock * clazzPointer, int32_t &result)
    {
+   TR_ASSERT(false, "javaLangClassGetModifiersImpl");
    return false;
    }
 
@@ -8567,6 +8573,7 @@ uint32_t
 TR_J9SharedCacheVM::getInstanceFieldOffset(TR_OpaqueClassBlock * classPointer, char * fieldName, uint32_t fieldLen,
                                     char * sig, uint32_t sigLen, UDATA options)
    {
+   TR_ASSERT(false, "getInstanceFieldOffset");
 
    TR::Compilation* comp = _compInfo->getCompInfoForCompOnAppThread() ? _compInfo->getCompInfoForCompOnAppThread()->getCompilation() : _compInfoPT->getCompilation();
    TR_ASSERT(comp, "Should be called only within a compilation");
@@ -8599,6 +8606,7 @@ TR_J9SharedCacheVM::getInstanceFieldOffset(TR_OpaqueClassBlock * classPointer, c
 TR_OpaqueClassBlock *
 TR_J9SharedCacheVM::getClassOfMethod(TR_OpaqueMethodBlock *method)
    {
+   TR_ASSERT(false, "getClassOfMethod");
    TR_OpaqueClassBlock *classPointer = TR_J9VM::getClassOfMethod(method);
 
    TR::Compilation* comp = _compInfo->getCompInfoForCompOnAppThread() ? _compInfo->getCompInfoForCompOnAppThread()->getCompilation() : _compInfoPT->getCompilation();
@@ -8648,6 +8656,7 @@ TR_J9SharedCacheVM::getSuperClass(TR_OpaqueClassBlock * classPointer)
 void
 TR_J9SharedCacheVM::getResolvedMethods(TR_Memory *trMemory, TR_OpaqueClassBlock * classPointer, List<TR_ResolvedMethod> * resolvedMethodsInClass)
    {
+   TR_ASSERT(false, "getResolvedMethods");
    TR::Compilation* comp = _compInfo->getCompInfoForCompOnAppThread() ? _compInfo->getCompInfoForCompOnAppThread()->getCompilation() : _compInfoPT->getCompilation();
    TR_ASSERT(comp, "Should be called only within a compilation");
 
@@ -8695,6 +8704,7 @@ TR_ResolvedMethod *
 TR_J9SharedCacheVM::getResolvedMethodForNameAndSignature(TR_Memory * trMemory, TR_OpaqueClassBlock * classPointer,
                                                          const char* methodName, const char *signature)
    {
+   TR_ASSERT(false, "getResolvedMethodForNameAndSignature");
    TR::Compilation* comp = _compInfo->getCompInfoForCompOnAppThread() ? _compInfo->getCompInfoForCompOnAppThread()->getCompilation() : _compInfoPT->getCompilation();
    TR_ASSERT(comp, "Should be called only within a compilation");
 
@@ -8727,6 +8737,7 @@ TR_J9SharedCacheVM::getResolvedMethodForNameAndSignature(TR_Memory * trMemory, T
 TR_OpaqueMethodBlock *
 TR_J9SharedCacheVM::getMethodFromName(char *className, char *methodName, char *signature, TR_OpaqueMethodBlock *callingMethod)
    {
+   TR_ASSERT(false, "getMethodFromName");
    TR_OpaqueMethodBlock *omb = this->TR_J9VM::getMethodFromName(className, methodName, signature, callingMethod);
    if (omb)
       {
@@ -8773,6 +8784,7 @@ TR_J9SharedCacheVM::isClassLibraryMethod(TR_OpaqueMethodBlock *method, bool vett
 TR_OpaqueMethodBlock *
 TR_J9SharedCacheVM::getMethodFromClass(TR_OpaqueClassBlock * methodClass, char * methodName, char * signature, TR_OpaqueClassBlock *callingClass)
    {
+   TR_ASSERT(false, "getMethodFromClass");
    TR_OpaqueMethodBlock* omb = this->TR_J9VM::getMethodFromClass(methodClass, methodName, signature, callingClass);
    if (omb)
       {
@@ -8802,6 +8814,7 @@ TR_J9SharedCacheVM::getMethodFromClass(TR_OpaqueClassBlock * methodClass, char *
 bool
 TR_J9SharedCacheVM::supportAllocationInlining(TR::Compilation *comp, TR::Node *node)
    {
+   TR_ASSERT(false, "supportAllocationInlining");
    if (comp->getOptions()->realTimeGC())
       return false;
 
@@ -8817,6 +8830,7 @@ TR_J9SharedCacheVM::supportAllocationInlining(TR::Compilation *comp, TR::Node *n
 TR_YesNoMaybe
 TR_J9SharedCacheVM::isInstanceOf(TR_OpaqueClassBlock * a, TR_OpaqueClassBlock *b, bool objectTypeIsFixed, bool castTypeIsFixed, bool optimizeForAOT)
    {
+   TR_ASSERT(false, "isInstanceOf");
    TR::Compilation *comp = TR::comp();
    TR_YesNoMaybe isAnInstanceOf = TR_J9VM::isInstanceOf(a, b, objectTypeIsFixed, castTypeIsFixed);
    bool validated = false;
@@ -8907,6 +8921,7 @@ TR_J9SharedCacheVM::getSystemClassFromClassName(const char * name, int32_t lengt
 TR_OpaqueClassBlock *
 TR_J9SharedCacheVM::getProfiledClassFromProfiledInfo(TR_ExtraAddressInfo *profiledInfo)
    {
+   TR_ASSERT(false, "getProfiledClassFromProfiledInfo");
    TR_OpaqueClassBlock * classPointer = (TR_OpaqueClassBlock *)(profiledInfo->_value);
    TR::Compilation* comp = _compInfo->getCompInfoForCompOnAppThread() ? _compInfo->getCompInfoForCompOnAppThread()->getCompilation() : _compInfoPT->getCompilation();
    TR_ASSERT(comp, "Should be called only within a compilation");
@@ -8935,6 +8950,7 @@ TR_J9SharedCacheVM::getProfiledClassFromProfiledInfo(TR_ExtraAddressInfo *profil
 bool
 TR_J9SharedCacheVM::isPublicClass(TR_OpaqueClassBlock * classPointer)
    {
+   TR_ASSERT(false, "isPublicClass");
    TR::Compilation* comp = _compInfo->getCompInfoForCompOnAppThread() ? _compInfo->getCompInfoForCompOnAppThread()->getCompilation() : _compInfoPT->getCompilation();
    TR_ASSERT(comp, "Should be called only within a compilation");
 
@@ -8968,6 +8984,7 @@ TR_J9SharedCacheVM::isPublicClass(TR_OpaqueClassBlock * classPointer)
 bool
 TR_J9SharedCacheVM::hasFinalizer(TR_OpaqueClassBlock * classPointer)
    {
+   TR_ASSERT(false, "hasFinalizer");
    TR::Compilation* comp = _compInfo->getCompInfoForCompOnAppThread() ? _compInfo->getCompInfoForCompOnAppThread()->getCompilation() : _compInfoPT->getCompilation();
    TR_ASSERT(comp, "Should be called only within a compilation");
 
@@ -9034,6 +9051,7 @@ TR_J9SharedCacheVM::getClassDepthAndFlagsValue(TR_OpaqueClassBlock * classPointe
 bool
 TR_J9SharedCacheVM::isPrimitiveClass(TR_OpaqueClassBlock * classPointer)
    {
+   TR_ASSERT(false, "isPrimitiveClass");
    TR::Compilation* comp = _compInfo->getCompInfoForCompOnAppThread() ? _compInfo->getCompInfoForCompOnAppThread()->getCompilation() : _compInfoPT->getCompilation();
    TR_ASSERT(comp, "Should be called only within a compilation");
 
@@ -9191,6 +9209,7 @@ TR_J9SharedCacheVM::getBaseComponentClass(TR_OpaqueClassBlock * classPointer, in
 TR_OpaqueClassBlock *
 TR_J9SharedCacheVM::getClassFromNewArrayType(int32_t arrayType)
    {
+   TR_ASSERT(false, "getClassFromNewArrayType");
    // TODO: This needs to return null because for some reason VP depends on it.
    // It may be that this is just done because rememberClass is broken and can't 
    // handle arrays of primitives.
@@ -9206,6 +9225,7 @@ TR_J9SharedCacheVM::getClassFromNewArrayType(int32_t arrayType)
 bool
 TR_J9SharedCacheVM::isPrimitiveArray(TR_OpaqueClassBlock *classPointer)
    {
+   TR_ASSERT(false, "isPrimitiveArray");
    TR::Compilation* comp = _compInfo->getCompInfoForCompOnAppThread() ? _compInfo->getCompInfoForCompOnAppThread()->getCompilation() : _compInfoPT->getCompilation();
    TR_ASSERT(comp, "Should be called only within a compilation");
 
@@ -9239,6 +9259,7 @@ TR_J9SharedCacheVM::isPrimitiveArray(TR_OpaqueClassBlock *classPointer)
 bool
 TR_J9SharedCacheVM::isReferenceArray(TR_OpaqueClassBlock *classPointer)
    {
+   TR_ASSERT(false, "isReferenceArray");
    TR::Compilation* comp = _compInfo->getCompInfoForCompOnAppThread() ? _compInfo->getCompInfoForCompOnAppThread()->getCompilation() : _compInfoPT->getCompilation();
    TR_ASSERT(comp, "Should be called only within a compilation");
 
@@ -9272,6 +9293,7 @@ TR_J9SharedCacheVM::isReferenceArray(TR_OpaqueClassBlock *classPointer)
 TR_OpaqueClassBlock *
 TR_J9SharedCacheVM::getClassClassPointer(TR_OpaqueClassBlock *objectClassPointer)
    {
+   TR_ASSERT(false, "getClassClassPointer");
    TR_OpaqueClassBlock *ccPointer = TR_J9VM::getClassClassPointer(objectClassPointer);
    TR::Compilation *comp = TR::comp();
    if (comp && comp->getOption(TR_UseSymbolValidationManager))
@@ -9285,6 +9307,7 @@ TR_J9SharedCacheVM::getClassClassPointer(TR_OpaqueClassBlock *objectClassPointer
 TR_OpaqueMethodBlock *
 TR_J9SharedCacheVM::getInlinedCallSiteMethod(TR_InlinedCallSite *ics)
    {
+   TR_ASSERT(false, "getInlinedCallSiteMethod");
    return (TR_OpaqueMethodBlock *)((TR_AOTMethodInfo *)(ics->_vmMethodInfo))->resolvedMethod->getPersistentIdentifier();
    }
 
@@ -9292,6 +9315,7 @@ TR_J9SharedCacheVM::getInlinedCallSiteMethod(TR_InlinedCallSite *ics)
 bool
 TR_J9SharedCacheVM::sameClassLoaders(TR_OpaqueClassBlock * class1, TR_OpaqueClassBlock * class2)
    {
+   TR_ASSERT(false, "sameClassLoaders");
    // conservative answer: need a relocation to validate
    return false;
    }
@@ -9299,12 +9323,14 @@ TR_J9SharedCacheVM::sameClassLoaders(TR_OpaqueClassBlock * class1, TR_OpaqueClas
 bool
 TR_J9SharedCacheVM::isUnloadAssumptionRequired(TR_OpaqueClassBlock *, TR_ResolvedMethod *)
    {
+   TR_ASSERT(false, "isUnloadAssumptionRequired");
    return true;
    }
 
 bool
 TR_J9SharedCacheVM::classHasBeenExtended(TR_OpaqueClassBlock * classPointer)
    {
+   TR_ASSERT(false, "classHasBeenExtended");
    return true;
    }
 
@@ -9317,6 +9343,7 @@ TR_J9SharedCacheVM::isGetImplInliningSupported()
 TR_ResolvedMethod *
 TR_J9SharedCacheVM::getObjectNewInstanceImplMethod(TR_Memory *)
    {
+   TR_ASSERT(false, "getObjectNewInstanceImplMethod");
    return NULL;
    }
 
@@ -9326,12 +9353,14 @@ TR_J9SharedCacheVM::getObjectNewInstanceImplMethod(TR_Memory *)
 TR::CodeCache *
 TR_J9SharedCacheVM::getResolvedTrampoline(TR::Compilation *comp, TR::CodeCache *, J9Method * method, bool inBinaryEncoding)
    {
+   TR_ASSERT(false, "getResolvedTrampoline");
    return 0;
    }
 
 intptrj_t
 TR_J9SharedCacheVM::methodTrampolineLookup(TR::Compilation *comp, TR::SymbolReference * symRef, void * callSite)
    {
+   TR_ASSERT(false, "methodTrampolineLookup");
    TR_ASSERT(0, "methodTrampolineLookup not implemented for AOT");
    return 0;
    }
@@ -9381,24 +9410,28 @@ TR_J9SharedCacheVM::getDesignatedCodeCache(TR::Compilation *comp)
 void *
 TR_J9SharedCacheVM::getJ2IThunk(char *signatureChars, uint32_t signatureLength, TR::Compilation *comp)
    {
+   TR_ASSERT(false, "getJ2IThunk");
    return (void *)findPersistentThunk(signatureChars, signatureLength);
    }
 
 void *
 TR_J9SharedCacheVM::setJ2IThunk(char *signatureChars, uint32_t signatureLength, void *thunkptr, TR::Compilation *comp)
    {
+   TR_ASSERT(false, "setJ2IThunk");
    return persistThunk(signatureChars, signatureLength, (U_8*)thunkptr - 8 /* start of thunk */, *((U_32 *)((U_8*)thunkptr -8)) + 8 /* size of thunk */);
    }
 
 void *
 TR_J9SharedCacheVM::persistJ2IThunk(void *thunk)
    {
+   TR_ASSERT(false, "persistJ2IThunk");
    return persistThunk(((TR_J2IThunk *)thunk)->terseSignature(), strlen(((TR_J2IThunk *)thunk)->terseSignature()), (uint8_t*)thunk, ((TR_J2IThunk *)thunk)->totalSize());
    }
 
 void *
 TR_J9SharedCacheVM::persistThunk(char *signatureChars, uint32_t signatureLength, uint8_t *thunkStart, uint32_t totalSize)
    {
+   TR_ASSERT(false, "persistThunk");
 #if defined(J9VM_INTERP_AOT_COMPILE_SUPPORT) && defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM))
    J9SharedDataDescriptor dataDescriptor;
    J9VMThread *curThread = getCurrentVMThread();
@@ -9449,6 +9482,7 @@ TR_J9SharedCacheVM::TR_J9SharedCacheVM(J9JITConfig * jitConfig, TR::CompilationI
 J9Class *
 TR_J9SharedCacheVM::getClassForAllocationInlining(TR::Compilation *comp, TR::SymbolReference *classSymRef)
    {
+   TR_ASSERT(false, "getClassForAllocationInlining");
    bool returnClassForAOT = true;
    if (!classSymRef->isUnresolved())
       return TR_J9VM::getClassForAllocationInlining(comp, classSymRef);

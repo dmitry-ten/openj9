@@ -1386,6 +1386,7 @@ TR_ResolvedRelocatableJ9Method::TR_ResolvedRelocatableJ9Method(TR_OpaqueMethodBl
 int32_t
 TR_ResolvedRelocatableJ9Method::virtualCallSelector(U_32 cpIndex)
    {
+TR_ASSERT(false, "virtualCallSelector");
    return TR_ResolvedJ9Method::virtualCallSelector(cpIndex);
    //return -1;
    }
@@ -1393,6 +1394,7 @@ TR_ResolvedRelocatableJ9Method::virtualCallSelector(U_32 cpIndex)
 bool
 TR_ResolvedRelocatableJ9Method::unresolvedFieldAttributes(I_32 cpIndex, TR::DataType * type, bool * volatileP, bool * isFinal, bool * isPrivate)
    {
+TR_ASSERT(false, "unresolvedFieldAttributes");
    U_32 ltype;
    I_32 myVolatile, myFinal, myPrivate;
 
@@ -1402,6 +1404,7 @@ TR_ResolvedRelocatableJ9Method::unresolvedFieldAttributes(I_32 cpIndex, TR::Data
 bool
 TR_ResolvedRelocatableJ9Method::unresolvedStaticAttributes(I_32 cpIndex, TR::DataType * type, bool * volatileP, bool * isFinal, bool * isPrivate)
    {
+TR_ASSERT(false, "unresolvedStaticAttributes");
    U_32 ltype;
    I_32 myVolatile, myFinal, myPrivate;
 
@@ -1411,6 +1414,7 @@ TR_ResolvedRelocatableJ9Method::unresolvedStaticAttributes(I_32 cpIndex, TR::Dat
 void
 TR_ResolvedRelocatableJ9Method::setAttributeResult(bool isStaticField, bool result, UDATA ltype, I_32 myVolatile, I_32 myFinal, I_32 myPrivate, TR::DataType * type, bool * volatileP, bool * isFinal, bool * isPrivate, void ** fieldOffset)
    {
+TR_ASSERT(false, "setAttributeResult");
    if (result)
       {
       *volatileP = myVolatile ? true : false;
@@ -1435,6 +1439,7 @@ TR_ResolvedRelocatableJ9Method::setAttributeResult(bool isStaticField, bool resu
 char *
 TR_ResolvedRelocatableJ9Method::fieldOrStaticNameChars(I_32 cpIndex, int32_t & len)
    {
+TR_ASSERT(false, "fieldOrStaticNameChars");
    len = 0;
    return ""; // TODO: Implement me
    }
@@ -1491,18 +1496,21 @@ TR_ResolvedRelocatableJ9Method::isInterpreted()
 bool
 TR_ResolvedRelocatableJ9Method::isInterpretedForHeuristics()
    {
+TR_ASSERT(false, "isInterpretedForHeuristics");
    return TR_ResolvedJ9Method::isInterpreted();
    }
 
 void *
 TR_ResolvedRelocatableJ9Method::startAddressForJittedMethod()
    {
+TR_ASSERT(false, "startAddressForJittedMethod");
    return NULL;
    }
 
 void *
 TR_ResolvedRelocatableJ9Method::startAddressForJNIMethod(TR::Compilation * comp)
    {
+TR_ASSERT(false, "startAddressForJNIMethod");
 #if defined(TR_TARGET_S390)  || defined(TR_TARGET_X86) || defined(TR_TARGET_POWER)
    return TR_ResolvedJ9Method::startAddressForJNIMethod(comp);
 #else
@@ -1513,24 +1521,28 @@ TR_ResolvedRelocatableJ9Method::startAddressForJNIMethod(TR::Compilation * comp)
 void *
 TR_ResolvedRelocatableJ9Method::startAddressForJITInternalNativeMethod()
    {
+TR_ASSERT(false, "startAddressForJITInternalNativeMethod");
    return 0;
    }
 
 void *
 TR_ResolvedRelocatableJ9Method::startAddressForInterpreterOfJittedMethod()
    {
+TR_ASSERT(false, "startAddressForInterpreterOfJittedMethod");
    return ((J9Method *)getNonPersistentIdentifier())->extra;
    }
 
 void *
 TR_ResolvedRelocatableJ9Method::constantPool()
    {
+TR_ASSERT(false, "constantPool");
    return romLiterals();
    }
 
 TR_OpaqueClassBlock *
 TR_ResolvedRelocatableJ9Method::getClassFromConstantPool(TR::Compilation *comp, uint32_t cpIndex, bool returnClassForAOT)
    {
+TR_ASSERT(false, "getClassFromConstantPool");
    TR_OpaqueClassBlock * resolvedClass = NULL;
 
    if (returnClassForAOT || comp->getOption(TR_UseSymbolValidationManager))
@@ -1553,6 +1565,7 @@ TR_ResolvedRelocatableJ9Method::getClassFromConstantPool(TR::Compilation *comp, 
 bool
 TR_ResolvedRelocatableJ9Method::validateClassFromConstantPool(TR::Compilation *comp, J9Class *clazz, uint32_t cpIndex,  TR_ExternalRelocationTargetKind reloKind)
    {
+TR_ASSERT(false, "validateClassFromConstantPool");
    if (comp->getOption(TR_UseSymbolValidationManager))
       {
       return comp->getSymbolValidationManager()->addClassFromCPRecord(reinterpret_cast<TR_OpaqueClassBlock *>(clazz), cp(), cpIndex);
@@ -1603,6 +1616,7 @@ cpType2trType(UDATA cpType)
 void *
 TR_ResolvedRelocatableJ9Method::stringConstant(I_32 cpIndex)
    {
+TR_ASSERT(false, "stringConstant");
    TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
 
    return (void *) ((U_8 *)&(((J9RAMStringRef *) romLiterals())[cpIndex].stringObject));
@@ -1611,6 +1625,7 @@ TR_ResolvedRelocatableJ9Method::stringConstant(I_32 cpIndex)
 bool
 TR_ResolvedRelocatableJ9Method::isUnresolvedString(I_32 cpIndex, bool optimizeForAOT)
    {
+TR_ASSERT(false, "isUnresolvedString");
    TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
 
    if (optimizeForAOT)
@@ -1621,6 +1636,7 @@ TR_ResolvedRelocatableJ9Method::isUnresolvedString(I_32 cpIndex, bool optimizeFo
 void *
 TR_ResolvedRelocatableJ9Method::methodTypeConstant(I_32 cpIndex)
    {
+TR_ASSERT(false, "methodTypeConstant");
    TR_ASSERT(false, "should be unreachable");
    return NULL;
    }
@@ -1628,6 +1644,7 @@ TR_ResolvedRelocatableJ9Method::methodTypeConstant(I_32 cpIndex)
 bool
 TR_ResolvedRelocatableJ9Method::isUnresolvedMethodType(I_32 cpIndex)
    {
+TR_ASSERT(false, "isUnresolvedMethodType");
    TR_ASSERT(false, "should be unreachable");
    return true;
    }
@@ -1635,6 +1652,7 @@ TR_ResolvedRelocatableJ9Method::isUnresolvedMethodType(I_32 cpIndex)
 void *
 TR_ResolvedRelocatableJ9Method::methodHandleConstant(I_32 cpIndex)
    {
+TR_ASSERT(false, "methodHandleConstant");
    TR_ASSERT(false, "should be unreachable");
    return NULL;
    }
@@ -1642,6 +1660,7 @@ TR_ResolvedRelocatableJ9Method::methodHandleConstant(I_32 cpIndex)
 bool
 TR_ResolvedRelocatableJ9Method::isUnresolvedMethodHandle(I_32 cpIndex)
    {
+TR_ASSERT(false, "isUnresolvedMethodHandle");
    TR_ASSERT(false, "should be unreachable");
    return true;
    }
@@ -1653,6 +1672,7 @@ TR_ResolvedRelocatableJ9Method::getResolvedPossiblyPrivateVirtualMethod(
    bool ignoreRtResolve,
    bool * unresolvedInCP)
    {
+TR_ASSERT(false, "getResolvedPossiblyPrivateVirtualMethod");
    TR_ResolvedMethod *method =
       TR_ResolvedJ9Method::getResolvedPossiblyPrivateVirtualMethod(
          comp,
@@ -1672,6 +1692,7 @@ TR_ResolvedRelocatableJ9Method::getResolvedPossiblyPrivateVirtualMethod(
 bool
 TR_ResolvedRelocatableJ9Method::getUnresolvedFieldInCP(I_32 cpIndex)
    {
+TR_ASSERT(false, "getUnresolvedFieldInCP");
    TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
    #if defined(J9VM_INTERP_AOT_COMPILE_SUPPORT) && defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM))
       return !J9RAMFIELDREF_IS_RESOLVED(((J9RAMFieldRef*)cp()) + cpIndex);
@@ -1794,6 +1815,7 @@ TR_ResolvedRelocatableJ9Method::storeValidationRecordIfNecessary(TR::Compilation
 bool
 TR_ResolvedRelocatableJ9Method::fieldAttributes(TR::Compilation * comp, int32_t cpIndex, uint32_t * fieldOffset, TR::DataType * type, bool * volatileP, bool * isFinal, bool * isPrivate, bool isStore, bool * unresolvedInCP, bool needAOTValidation)
    {
+TR_ASSERT(false, "fieldAttributes");
    TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
 
 #if defined(DEBUG_LOCAL_CLASS_OPT)
@@ -1924,6 +1946,7 @@ TR_ResolvedRelocatableJ9Method::staticAttributes(TR::Compilation * comp,
                                                  bool * unresolvedInCP,
                                                  bool needAOTValidation)
    {
+TR_ASSERT(false, "staticAttributes");
    TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
 
 #if defined(DEBUG_LOCAL_CLASS_OPT)
@@ -2022,18 +2045,21 @@ TR_ResolvedRelocatableJ9Method::staticAttributes(TR::Compilation * comp,
 char *
 TR_ResolvedRelocatableJ9Method::fieldSignatureChars(int32_t cpIndex, int32_t & len)
    {
+TR_ASSERT(false, "fieldSignatureChars");
    return cpIndex > 0 ? fieldOrStaticSignatureChars(cpIndex, len) : 0;
    }
 
 char *
 TR_ResolvedRelocatableJ9Method::staticSignatureChars(int32_t cpIndex, int32_t & len)
    {
+TR_ASSERT(false, "staticSignatureChars");
    return cpIndex >= 0 ? fieldOrStaticSignatureChars(cpIndex, len) : 0;
    }
 
 TR_OpaqueClassBlock *
 TR_ResolvedRelocatableJ9Method::classOfStatic(int32_t cpIndex, bool returnClassForAOT)
    {
+TR_ASSERT(false, "classOfStatic");
    TR_OpaqueClassBlock * clazz = TR_ResolvedJ9Method::classOfStatic(cpIndex, returnClassForAOT);
 
    TR::Compilation *comp = TR::comp();
@@ -2057,24 +2083,28 @@ TR_ResolvedRelocatableJ9Method::classOfStatic(int32_t cpIndex, bool returnClassF
 void
 TR_ResolvedRelocatableJ9Method::handleUnresolvedStaticMethodInCP(int32_t cpIndex, bool * unresolvedInCP)
    {
+TR_ASSERT(false, "handleUnresolvedStaticMethodInCP");
    *unresolvedInCP = getUnresolvedStaticMethodInCP(cpIndex);
    }
 
 void
 TR_ResolvedRelocatableJ9Method::handleUnresolvedSpecialMethodInCP(int32_t cpIndex, bool * unresolvedInCP)
    {
+TR_ASSERT(false, "handleUnresolvedSpecialMethodInCP");
    *unresolvedInCP = getUnresolvedSpecialMethodInCP(cpIndex);
    }
 
 void
 TR_ResolvedRelocatableJ9Method::handleUnresolvedVirtualMethodInCP(int32_t cpIndex, bool * unresolvedInCP)
    {
+TR_ASSERT(false, "handleUnresolvedVirtualMethodInCP");
    *unresolvedInCP = getUnresolvedVirtualMethodInCP(cpIndex);
    }
 
 bool
 TR_ResolvedRelocatableJ9Method::getUnresolvedMethodInCP(TR_OpaqueMethodBlock *aMethod)
    {
+TR_ASSERT(false, "getUnresolvedMethodInCP");
    J9Method *ramMethod = (J9Method*)aMethod;
    return !ramMethod || !J9_BYTECODE_START_FROM_RAM_METHOD(ramMethod);
    }
@@ -2082,6 +2112,7 @@ TR_ResolvedRelocatableJ9Method::getUnresolvedMethodInCP(TR_OpaqueMethodBlock *aM
 bool
 TR_ResolvedRelocatableJ9Method::getUnresolvedStaticMethodInCP(I_32 cpIndex)
    {
+TR_ASSERT(false, "getUnresolvedStaticMethodInCP");
    J9Method *method = NULL;
    TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
 
@@ -2123,6 +2154,7 @@ static bool doResolveAtRuntime(J9Method *method, I_32 cpIndex, TR::Compilation *
 bool
 TR_ResolvedRelocatableJ9Method::getUnresolvedSpecialMethodInCP(I_32 cpIndex)
    {
+TR_ASSERT(false, "getUnresolvedSpecialMethodInCP");
    J9Method *method = NULL;
    TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
 
@@ -2137,6 +2169,7 @@ TR_ResolvedRelocatableJ9Method::getUnresolvedSpecialMethodInCP(I_32 cpIndex)
 bool
 TR_ResolvedRelocatableJ9Method::getUnresolvedVirtualMethodInCP(I_32 cpIndex)
    {
+TR_ASSERT(false, "getUnresolvedVirtualMethodInCP");
 /*
    TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
    J9Method *ramMethod;
@@ -2154,6 +2187,7 @@ TR_ResolvedRelocatableJ9Method::getResolvedImproperInterfaceMethod(
    TR::Compilation * comp,
    I_32 cpIndex)
    {
+TR_ASSERT(false, "getResolvedImproperInterfaceMethod");
    if (comp->getOption(TR_UseSymbolValidationManager))
       return TR_ResolvedJ9Method::getResolvedImproperInterfaceMethod(comp, cpIndex);
 
@@ -2167,6 +2201,7 @@ TR_ResolvedRelocatableJ9Method::getResolvedImproperInterfaceMethod(
 TR_ResolvedMethod *
 TR_ResolvedRelocatableJ9Method::createResolvedMethodFromJ9Method(TR::Compilation *comp, I_32 cpIndex, uint32_t vTableSlot, J9Method *j9method, bool * unresolvedInCP, TR_AOTInliningStats *aotStats)
    {
+TR_ASSERT(false, "createResolvedMethodFromJ9Method");
    TR_ResolvedMethod *resolvedMethod = NULL;
 
 #if defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM))
@@ -7229,6 +7264,7 @@ TR_J9SharedCacheVM::getResolvedInterfaceMethod(TR_OpaqueMethodBlock *interfaceMe
 TR_OpaqueClassBlock *
 TR_ResolvedRelocatableJ9Method::getDeclaringClassFromFieldOrStatic(TR::Compilation *comp, int32_t cpIndex)
    {
+TR_ASSERT(false, "getDeclaringClassFromFieldOrStatic");
    TR_OpaqueClassBlock *definingClass = TR_ResolvedJ9MethodBase::getDeclaringClassFromFieldOrStatic(comp, cpIndex);
    if (comp->getOption(TR_UseSymbolValidationManager))
       {
