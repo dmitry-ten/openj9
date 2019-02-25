@@ -376,7 +376,16 @@ TR_J9ServerVM::jitFieldsAreSame(TR_ResolvedMethod * method1, I_32 cpIndex1, TR_R
       {
       if (sigSame)
          {
-         // if name and signature comparison is inconclusive, make a remote call 
+         // Name and signature comparison is inconclusive
+         // To be identical neeed 2 to satisfy 2 conditions:
+         // 1. fields belong to the same J9Class
+         // 2. fields contain same values
+         if (serverMethod1->constantPoolHdr() != serverMethod2->constantPoolHdr())
+            return false;
+         // if fields are from the same class at the same cp index, they definitely have same values
+         if (cpIndex1 == cpIndex2)
+            return true;
+         // cp indices are different, need to make a remote call
          stream->write(JITaaS::J9ServerMessageType::VM_jitFieldsAreSame, clientMethod1, cpIndex1, clientMethod2, cpIndex2, isStatic);
          result = std::get<0>(stream->read<bool>());
          }
@@ -404,7 +413,16 @@ TR_J9ServerVM::jitStaticsAreSame(TR_ResolvedMethod *method1, I_32 cpIndex1, TR_R
       {
       if (sigSame)
          {
-         // if name and signature comparison is inconclusive, make a remote call 
+         // Name and signature comparison is inconclusive
+         // To be identical neeed 2 to satisfy 2 conditions:
+         // 1. fields belong to the same J9Class
+         // 2. fields contain same values
+         if (serverMethod1->constantPoolHdr() != serverMethod2->constantPoolHdr())
+            return false;
+         // if fields are from the same class at the same cp index, they definitely have same values
+         if (cpIndex1 == cpIndex2)
+            return true;
+         // cp indices are different, need to make a remote call
          stream->write(JITaaS::J9ServerMessageType::VM_jitStaticsAreSame, clientMethod1, cpIndex1, clientMethod2, cpIndex2);
          result = std::get<0>(stream->read<bool>());
          }
