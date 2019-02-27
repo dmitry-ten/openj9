@@ -27,6 +27,66 @@
 #include "control/MethodToBeCompiled.hpp"
 #include "control/JITaaSCompilationThread.hpp"
 #include "exceptions/DataCacheError.hpp"
+#include "env/VMAccessCriticalSection.hpp"
+
+static inline UDATA getFieldType(J9ROMConstantPoolItem * cp, I_32 cpIndex)
+   {
+   J9ROMFieldRef * ref = (J9ROMFieldRef *) (&cp[cpIndex]);
+   J9ROMNameAndSignature * nameAndSignature = J9ROMFIELDREF_NAMEANDSIGNATURE(ref);
+   J9UTF8 * data = J9ROMNAMEANDSIGNATURE_SIGNATURE(nameAndSignature);
+   UDATA j9FieldType = (UDATA)(J9UTF8_DATA(data)[0]);
+
+   switch (j9FieldType)
+      {    // cannot use characters because on s390 the compiler will generate an EBCDIC value
+           // internal JVM representation is in ASCII
+      case J9_SIGBYTE_BYTE:// byte 'B'
+        return (j9FieldType |= J9FieldTypeByte);
+      case J9_SIGBYTE_CHAR:// char 'C'
+        return (j9FieldType |= 0);
+      case J9_SIGBYTE_DOUBLE:// double 'D'
+        return (j9FieldType |= (J9FieldTypeDouble | J9FieldSizeDouble ));
+      case J9_SIGBYTE_FLOAT:// float 'F'
+        return (j9FieldType |= J9FieldTypeFloat);
+      case J9_SIGBYTE_INT:// int 'I'
+        return (j9FieldType |= J9FieldTypeInt);
+      case J9_SIGBYTE_LONG:// long 'J'
+        return (j9FieldType |=  (J9FieldTypeLong | J9FieldSizeDouble ));
+      case J9_SIGBYTE_SHORT:// short 'S'
+        return (j9FieldType |= J9FieldTypeShort);
+      case J9_SIGBYTE_BOOLEAN:// boolean 'Z'
+        return (j9FieldType |= J9FieldTypeBoolean);
+      default:// object
+        return (j9FieldType |= J9FieldFlagObject);
+      }
+
+   }
+
+// takes a J9FieldType and returns the DataTypes associated
+// along with the size.
+//
+static TR::DataType decodeType(U_32 inType)
+   {
+   // the J9FieldTypes are bits, so we must case on them.
+
+   switch (inType & (J9FieldTypeMask | J9FieldFlagObject))
+      {
+      case J9FieldTypeLong:    { return TR::Int64; }
+      case J9FieldTypeDouble:  { return TR::Double; }
+      case J9FieldTypeByte:    { return TR::Int8; }
+      case J9FieldTypeFloat:   { return TR::Float; }
+      case J9FieldTypeChar:    { return TR::Int16; }
+      case J9FieldTypeBoolean: { return TR::Int8; }
+      case J9FieldTypeShort:   { return TR::Int16; }
+      case J9FieldTypeInt:     { return TR::Int32; }
+      case J9FieldFlagObject:  { return TR::Address; }
+      default:
+         {
+         TR_ASSERT(0,"Bad typeCode in JIL_J9VM decodeType");
+         return TR::NoType;
+         }
+      }
+   }
+
 
 ClientSessionData::ClassInfo &
 getJ9ClassInfo(TR::CompilationInfoPerThread *threadCompInfo, J9Class *clazz)
@@ -658,7 +718,7 @@ TR_ResolvedJ9JITaaSServerMethod::getResolvedImproperInterfaceMethod(TR::Compilat
       if (j9method == nullptr)
          return nullptr;
       else
-         createResolvedMethodFromJ9Method(comp, cpIndex, 0, j9method, nullptr, nullptr, methodInfo);
+         return createResolvedMethodFromJ9Method(comp, cpIndex, 0, j9method, nullptr, nullptr, methodInfo);
       }
 
    return nullptr;
@@ -1757,6 +1817,21 @@ TR_ResolvedRelocatableJ9JITaaSServerMethod::createResolvedMethodFromJ9Method( TR
    return resolvedMethod;
    }
 
+TR_ResolvedMethod *
+TR_ResolvedRelocatableJ9JITaaSServerMethod::getResolvedImproperInterfaceMethod(
+   TR::Compilation * comp,
+   I_32 cpIndex)
+   {
+   if (comp->getOption(TR_UseSymbolValidationManager))
+      return TR_ResolvedJ9JITaaSServerMethod::getResolvedImproperInterfaceMethod(comp, cpIndex);
+
+   // For now leave private and Object invokeinterface unresolved in AOT. If we
+   // resolve it, we may forceUnresolvedDispatch in codegen, in which case the
+   // generated code would attempt to resolve the wrong kind of constant pool
+   // entry.
+   return NULL;
+   }
+
 void *
 TR_ResolvedRelocatableJ9JITaaSServerMethod::startAddressForJittedMethod()
    {
@@ -1942,8 +2017,233 @@ TR_ResolvedRelocatableJ9JITaaSServerMethod::getUnresolvedSpecialMethodInCP(I_32 
    return std::get<0>(_stream->read<bool>());
    }
 
+void
+TR_ResolvedRelocatableJ9JITaaSServerMethod::handleUnresolvedStaticMethodInCP(int32_t cpIndex, bool * unresolvedInCP)
+   {
+   *unresolvedInCP = getUnresolvedStaticMethodInCP(cpIndex);
+   }
+
+void
+TR_ResolvedRelocatableJ9JITaaSServerMethod::handleUnresolvedSpecialMethodInCP(int32_t cpIndex, bool * unresolvedInCP)
+   {
+   *unresolvedInCP = getUnresolvedSpecialMethodInCP(cpIndex);
+   }
+
+void
+TR_ResolvedRelocatableJ9JITaaSServerMethod::handleUnresolvedVirtualMethodInCP(int32_t cpIndex, bool * unresolvedInCP)
+   {
+   *unresolvedInCP = getUnresolvedVirtualMethodInCP(cpIndex);
+   }
+
 bool
 TR_ResolvedRelocatableJ9JITaaSServerMethod::getUnresolvedVirtualMethodInCP(int32_t cpIndex)
    {
    return false;
+   }
+
+bool
+TR_ResolvedRelocatableJ9JITaaSServerMethod::fieldAttributes(TR::Compilation * comp, int32_t cpIndex, uint32_t * fieldOffset, TR::DataType * type, bool * volatileP, bool * isFinal, bool * isPrivate, bool isStore, bool * unresolvedInCP, bool needAOTValidation)
+   {
+   TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
+
+   UDATA ltype;
+   I_32 volatileFlag = 0, finalFlag = 0, privateFlag = 0;
+
+   bool result = false;
+   bool theFieldIsFromLocalClass = false;
+   J9ConstantPool *constantPool = (J9ConstantPool *)(J9_CP_FROM_METHOD(ramMethod()));
+
+   IDATA offset;
+   bool fieldInfoCanBeUsed = false;
+   bool resolveField = true;
+
+   _stream->write(JITaaS::J9ServerMessageType::ResolvedRelocatableMethod_ResolveInstanceFieldRefWithMethod, ramMethod(), getRemoteMirror(), cpIndex, isStore);
+   auto recv = _stream->read<IDATA, bool, UDATA >();
+   offset = std::get<0>(recv);
+   *unresolvedInCP = std::get<1>(recv);
+   ltype = std::get<2>(recv);
+
+      {
+      TR::VMAccessCriticalSection fieldAttributes(fej9());
+
+      if (comp->getOption(TR_DisableAOTInstanceFieldResolution))
+         resolveField = false;
+      else
+         {
+         if (needAOTValidation)
+            {
+            if (comp->getOption(TR_UseSymbolValidationManager))
+               {
+               TR_J9VMBase *fej9 = (TR_J9VMBase *) comp->fe();
+               TR::CompilationInfo *compInfo = TR::CompilationInfo::get(fej9->_jitConfig);
+               TR::CompilationInfoPerThreadBase *compInfoPerThreadBase = compInfo->getCompInfoForCompOnAppThread();
+               TR_RelocationRuntime *reloRuntime = compInfo->getCompInfoForThread(fej9->vmThread())->reloRuntime();
+
+               TR_OpaqueClassBlock *clazz = reloRuntime->getClassFromCP(fej9->vmThread(), fej9->_jitConfig->javaVM, constantPool, cpIndex, false);
+
+               fieldInfoCanBeUsed = comp->getSymbolValidationManager()->addDefiningClassFromCPRecord(clazz, constantPool, cpIndex);
+               }
+            else
+               {
+               fieldInfoCanBeUsed = storeValidationRecordIfNecessary(comp, constantPool, cpIndex, TR_ValidateInstanceField, ramMethod());
+               }
+            }
+         else
+            {
+            fieldInfoCanBeUsed = true;
+            }
+         }
+      }
+
+   if (offset == J9JIT_RESOLVE_FAIL_COMPILE)
+      {
+      comp->failCompilation<TR::CompilationException>("offset == J9JIT_RESOLVE_FAIL_COMPILE");
+      }
+
+   if (!resolveField)
+      {
+      *fieldOffset = (U_32)NULL;
+      fieldInfoCanBeUsed = false;
+      }
+   if (offset >= 0 &&
+       (!(_fe->_jitConfig->runtimeFlags & J9JIT_RUNTIME_RESOLVE) ||
+        comp->ilGenRequest().details().isMethodHandleThunk() || // cmvc 195373
+        !performTransformation(comp, "Setting as unresolved field attributes cpIndex=%d\n",cpIndex))  && fieldInfoCanBeUsed
+       /*fieldIsFromLocalClass((void *)_methodCookie, cpIndex)*/)
+      {
+      theFieldIsFromLocalClass = true;
+      volatileFlag = (ltype & J9AccVolatile) ? 1 : 0;
+      finalFlag = (ltype & J9AccFinal) ? 1 : 0;
+      privateFlag = (ltype & J9AccPrivate) ? 1 : 0;
+
+      if (resolveField) *fieldOffset = offset + sizeof(J9Object);  // add header size
+      }
+   else
+      {
+#if defined(J9VM_INTERP_AOT_COMPILE_SUPPORT) && defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM))
+      ltype = getFieldType((J9ROMConstantPoolItem *)romLiterals(), cpIndex);
+#endif
+      }
+
+   setAttributeResult(false,
+                      theFieldIsFromLocalClass,
+                      ltype,
+                      volatileFlag,
+                      finalFlag,
+                      privateFlag,
+                      type,
+                      volatileP,
+                      isFinal,
+                      isPrivate,
+                      (void**)fieldOffset);
+
+   return theFieldIsFromLocalClass;
+   }
+
+bool
+TR_ResolvedRelocatableJ9JITaaSServerMethod::staticAttributes(TR::Compilation * comp,
+                                                 int32_t cpIndex,
+                                                 void * * address,
+                                                 TR::DataType * type,
+                                                 bool * volatileP,
+                                                 bool * isFinal,
+                                                 bool * isPrivate,
+                                                 bool isStore,
+                                                 bool * unresolvedInCP,
+                                                 bool needAOTValidation)
+   {
+   TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
+
+   U_32 ltype;
+   void *offset;
+   I_32 volatileFlag = 0, finalFlag = 0, privateFlag = 0;
+   bool result = false;
+   bool theFieldIsFromLocalClass = false;
+   J9ROMFieldShape * fieldShape = 0;
+   J9ConstantPool *constantPool = (J9ConstantPool *)(J9_CP_FROM_METHOD(ramMethod()));
+
+   bool fieldInfoCanBeUsed = false;
+
+   _stream->write(JITaaS::J9ServerMessageType::ResolvedRelocatableMethod_ResolveStaticFieldRefWithMethod, ramMethod(), getRemoteMirror(), cpIndex, isStore);
+   auto recv = _stream->read<void *, bool, UDATA >();
+   offset = std::get<0>(recv);
+   *unresolvedInCP = std::get<1>(recv);
+   ltype = std::get<2>(recv);
+
+   if (needAOTValidation)
+      {
+      if (comp->getOption(TR_UseSymbolValidationManager))
+         {
+         TR_J9VMBase *fej9 = (TR_J9VMBase *) comp->fe();
+         TR::CompilationInfo *compInfo = TR::CompilationInfo::get(fej9->_jitConfig);
+         TR_RelocationRuntime *reloRuntime = compInfo->getCompInfoForThread(fej9->vmThread())->reloRuntime();
+
+         TR_OpaqueClassBlock *clazz = reloRuntime->getClassFromCP(fej9->vmThread(), fej9->_jitConfig->javaVM, constantPool, cpIndex, true);
+
+         fieldInfoCanBeUsed = comp->getSymbolValidationManager()->addDefiningClassFromCPRecord(clazz, constantPool, cpIndex, true);
+         }
+      else
+         {
+         fieldInfoCanBeUsed = storeValidationRecordIfNecessary(comp, constantPool, cpIndex, TR_ValidateStaticField, ramMethod());
+         }
+      }
+   else
+      {
+      fieldInfoCanBeUsed = true;
+      }
+
+   if (offset == (void *)J9JIT_RESOLVE_FAIL_COMPILE)
+      {
+      comp->failCompilation<TR::CompilationException>("offset == J9JIT_RESOLVE_FAIL_COMPILE");
+      }
+
+   if (offset && fieldInfoCanBeUsed &&
+      (!(_fe->_jitConfig->runtimeFlags & J9JIT_RUNTIME_RESOLVE) ||
+      comp->ilGenRequest().details().isMethodHandleThunk() || // cmvc 195373
+      !performTransformation(comp, "Setting as unresolved static attributes cpIndex=%d\n",cpIndex)) /*&&
+      compInfo->isRomClassForMethodInSharedCache(method, jitConfig->javaVM) */  /* &&
+      fieldIsFromLocalClass((void *)_methodCookie, cpIndex)*/)
+      {
+      theFieldIsFromLocalClass = true;
+      ltype = fieldShape->modifiers;
+      volatileFlag = (ltype & J9AccVolatile) ? 1 : 0;
+      finalFlag = (ltype & J9AccFinal) ? 1 : 0;
+      privateFlag = (ltype & J9AccPrivate) ? 1 : 0;
+      *address = offset;
+
+      }
+   else
+      {
+#if defined(J9VM_INTERP_AOT_COMPILE_SUPPORT) && defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM))
+      ltype = getFieldType((J9ROMConstantPoolItem *)romLiterals(), cpIndex);
+#endif
+      }
+
+   setAttributeResult(true, theFieldIsFromLocalClass, ltype, volatileFlag, finalFlag, privateFlag, type, volatileP, isFinal, isPrivate, address);
+
+   return theFieldIsFromLocalClass;
+   }
+
+void
+TR_ResolvedRelocatableJ9JITaaSServerMethod::setAttributeResult(bool isStaticField, bool result, UDATA ltype, I_32 myVolatile, I_32 myFinal, I_32 myPrivate, TR::DataType * type, bool * volatileP, bool * isFinal, bool * isPrivate, void ** fieldOffset)
+   {
+   if (result)
+      {
+      *volatileP = myVolatile ? true : false;
+      if (isFinal) *isFinal = myFinal ? true : false;
+      if (isPrivate) *isPrivate = myPrivate ? true : false;
+      }
+   else
+      {
+      *volatileP = true;
+      if (fieldOffset)
+         {
+         if (isStaticField)
+            *fieldOffset = (void*) NULL;
+         else
+            *(U_32*)fieldOffset = (U_32) sizeof(J9Object);
+         }
+      }
+
+   *type = decodeType(ltype);
    }

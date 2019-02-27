@@ -1594,6 +1594,35 @@ bool handleServerMessage(JITaaS::J9ClientStream *client, TR_J9VM *fe)
          client->write(clazz, definingClass, classChain);
          }
          break;
+      case J9ServerMessageType::ResolvedRelocatableMethod_ResolveInstanceFieldRefWithMethod:
+         {
+         J9ROMFieldShape * fieldShape = 0;
+         auto recv = client->getRecvData<J9Method *, TR_ResolvedJ9Method*, int32_t, bool>();
+         auto ramMethod = std::get<0>(recv);
+         TR_ResolvedJ9Method *method= std::get<1>(recv);
+         auto cpIndex = std::get<2>(recv);
+         bool isStore = std::get<3>(recv);
+         IDATA offset = jitCTResolveInstanceFieldRefWithMethod(fe->vmThread(), ramMethod, cpIndex, isStore, &fieldShape);
+         bool unresolvedInCP = method->getUnresolvedFieldInCP(cpIndex);
+         client->write(offset, unresolvedInCP, fieldShape->modifiers);
+         }
+         break;
+      case J9ServerMessageType::ResolvedRelocatableMethod_ResolveStaticFieldRefWithMethod:
+         {
+         J9ROMFieldShape * fieldShape = 0;
+         auto recv = client->getRecvData<J9Method *, TR_ResolvedJ9Method*, int32_t, bool>();
+         auto ramMethod = std::get<0>(recv);
+         TR_ResolvedJ9Method *method= std::get<1>(recv);
+         int32_t cpIndex = std::get<2>(recv);
+
+         bool isStore = std::get<3>(recv);
+         void * offset = jitCTResolveStaticFieldRefWithMethod(fe->vmThread(), ramMethod, cpIndex, isStore, &fieldShape);
+
+         bool unresolvedInCP = method->getUnresolvedFieldInCP(cpIndex);
+         client->write(offset, unresolvedInCP, fieldShape->modifiers);
+         }
+         break;
+
       case J9ServerMessageType::CompInfo_isCompiled:
          {
          J9Method *method = std::get<0>(client->getRecvData<J9Method *>());
