@@ -1733,6 +1733,9 @@ TR_ResolvedRelocatableJ9Method::storeValidationRecordIfNecessary(TR::Compilation
    if (!classChain)
       return false;
 
+   if (comp->isRemoteCompilation())
+      // JITaaS: bypass, should only create AOT class info records on the server
+      return true;
    bool inLocalList = false;
    TR::list<TR::AOTClassInfo*>* aotClassInfo = comp->_aotClassInfo;
    if (!aotClassInfo->empty())
