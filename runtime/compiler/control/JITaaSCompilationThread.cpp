@@ -2624,6 +2624,14 @@ remoteCompilationEnd(
             }
          else
             {
+            if (TR::Options::getVerboseOption(TR_VerboseJITaaS))
+               {
+               TR_VerboseLog::writeLineLocked(TR_Vlog_JITaaS,
+                                              "JITaaS Relocation failure: %d",
+                                              compInfoPT->reloRuntime()->returnCode());
+               }
+            // relocation failed, fail compilation
+            // attempt to recompile in non-AOT mode
             entry->_doNotUseAotCodeFromSharedCache = true;
             entry->_compErrCode = returnCode;
 
@@ -2631,6 +2639,7 @@ remoteCompilationEnd(
                {
                entry->_tryCompilingAgain = true;
                }
+            comp->failCompilation<J9::AOTRelocationFailed>("Failed to relocate");
             }
          }
 #endif /* J9VM_INTERP_AOT_RUNTIME_SUPPORT */
