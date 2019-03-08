@@ -2565,6 +2565,7 @@ remoteCompilationEnd(
             canRelocateMethod = false;
          else
             canRelocateMethod = true;
+         canRelocateMethod = true;
          }
 
       if (canRelocateMethod)
