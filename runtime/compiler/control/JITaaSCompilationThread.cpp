@@ -1780,6 +1780,7 @@ bool handleServerMessage(JITaaS::J9ClientStream *client, TR_J9VM *fe)
          auto recv = client->getRecvData<J9Method *, TR_SharedCacheHint>();
          auto method = std::get<0>(recv);
          auto hint = std::get<1>(recv);
+         if (fe->sharedCache())
          fe->sharedCache()->addHint(method, hint);
          client->write(JITaaS::Void());
          }

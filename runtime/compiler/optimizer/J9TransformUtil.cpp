@@ -1004,6 +1004,7 @@ J9::TransformUtil::foldStaticFinalFieldImpl(TR::Compilation *comp, TR::Node *nod
    // we will embed some bits in the aotMethodHeader for this method
    if (comp->compileRelocatableCode())
       {
+      return false;
       if (sym->getRecognizedField() == TR::Symbol::Java_lang_String_enableCompression)
          {
          // Add the flags in TR_AOTMethodHeader
