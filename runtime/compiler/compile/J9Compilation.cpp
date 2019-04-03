@@ -181,7 +181,8 @@ J9::Compilation::Compilation(int32_t id,
    _outOfProcessCompilation(false),
    _remoteCompilation(false)
    {
-   _symbolValidationManager = new (self()->region()) TR::SymbolValidationManager(self()->region(), compilee);
+   if (((TR_J9VM *) fe)->isAOT_DEPRECATED_DO_NOT_USE())
+      _symbolValidationManager = new (self()->region()) TR::SymbolValidationManager(self()->region(), compilee);
 
    _aotClassClassPointer = NULL;
    _aotClassClassPointerInitialized = false;

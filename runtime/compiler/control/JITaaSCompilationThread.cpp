@@ -3015,6 +3015,12 @@ ClientSessionData::ClassInfo::freeClassInfo()
       jitPersistentFree(_constantClassPoolCache);
       }
 
+   if (_fieldAttributesCache)
+      {
+      _fieldAttributesCache->~PersistentUnorderedMap<int32_t, TR_J9MethodFieldAttributes>();
+      jitPersistentFree(_fieldAttributesCache);
+      }
+
    }
 
 ClientSessionData::VMInfo *
@@ -3272,6 +3278,7 @@ JITaaSHelpers::cacheRemoteROMClass(ClientSessionData *clientSessionData, J9Class
    classInfoStruct._classOfStaticCache = nullptr;
    classInfoStruct._constantClassPoolCache = nullptr;
    classInfoStruct.remoteRomClass = std::get<17>(classInfo);
+   classInfoStruct._fieldAttributesCache = NULL;
 
    clientSessionData->getROMClassMap().insert({ clazz, classInfoStruct});
 

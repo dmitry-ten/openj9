@@ -421,24 +421,55 @@ TR_ResolvedJ9JITaaSServerMethod::staticsAreSame(int32_t cpIndex1, TR_ResolvedMet
 bool
 TR_ResolvedJ9JITaaSServerMethod::fieldAttributes(TR::Compilation * comp, I_32 cpIndex, U_32 * fieldOffset, TR::DataType * type, bool * volatileP, bool * isFinal, bool * isPrivate, bool isStore, bool * unresolvedInCP, bool needAOTValidation)
    {
-   // look up attributes in a cache, make a query only if they are not cached
-   auto gotAttrs = _fieldAttributesCache.find(cpIndex); 
-   if (gotAttrs == _fieldAttributesCache.end())
+   TR::CompilationInfoPerThread *compInfoPT = _fe->_compInfoPT;
       {
-      _stream->write(JITaaS::J9ServerMessageType::ResolvedMethod_fieldAttributes, _remoteMirror, cpIndex, isStore, needAOTValidation);
-      auto recv = _stream->read<TR_J9MethodFieldAttributes>();
-      gotAttrs = _fieldAttributesCache.insert({cpIndex, std::get<0>(recv)}).first;
+      OMR::CriticalSection getRemoteROMClass(compInfoPT->getClientData()->getROMMapMonitor()); 
+      auto &fieldAttributesCache = getJ9ClassInfo(compInfoPT, _ramClass)._fieldAttributesCache;
+      if (!fieldAttributesCache)
+         {
+         // initialize cache, called once per ram class
+         fieldAttributesCache = new (PERSISTENT_NEW) PersistentUnorderedMap<int32_t, TR_J9MethodFieldAttributes>(PersistentUnorderedMap<int32_t, TR_J9MethodFieldAttributes>::allocator_type(TR::Compiler->persistentAllocator()));
+         }
+      
+      // auto it = fieldAttributesCache->find(cpIndex);
+      // if (it != fieldAttributesCache->end())
+         // {
+         // auto attrs = it->second;
+         // *fieldOffset = attrs.resolvedFieldAttribute.fieldOffset;
+         // *type = attrs.resolvedFieldAttribute.type;
+         // *volatileP = attrs.resolvedFieldAttribute.volatileP;
+         // if (isFinal) *isFinal = attrs.resolvedFieldAttribute.isFinal;
+         // if (isPrivate) *isPrivate = attrs.resolvedFieldAttribute.isPrivate;
+         // if (unresolvedInCP) *unresolvedInCP = attrs.resolvedFieldAttribute.unresolvedInCP;
+         // return attrs.resolvedFieldAttribute.result;
+         // }
       }
+   _stream->write(JITaaS::J9ServerMessageType::ResolvedMethod_fieldAttributes, _remoteMirror, cpIndex, isStore, needAOTValidation);
+   auto recv = _stream->read<TR_J9MethodFieldAttributes>();
+      {
+      OMR::CriticalSection getRemoteROMClass(compInfoPT->getClientData()->getROMMapMonitor()); 
+      auto &fieldAttributesCache = getJ9ClassInfo(compInfoPT, _ramClass)._fieldAttributesCache;
+      auto it = fieldAttributesCache->insert({cpIndex, std::get<0>(recv)}).first;
+      auto attrs = it->second;
+      *fieldOffset = attrs.resolvedFieldAttribute.fieldOffset;
+      *type = attrs.resolvedFieldAttribute.type;
+      *volatileP = attrs.resolvedFieldAttribute.volatileP;
+      if (isFinal) *isFinal = attrs.resolvedFieldAttribute.isFinal;
+      if (isPrivate) *isPrivate = attrs.resolvedFieldAttribute.isPrivate;
+      if (unresolvedInCP) *unresolvedInCP = attrs.resolvedFieldAttribute.unresolvedInCP;
+      return attrs.resolvedFieldAttribute.result;
+      }
+   // look up attributes in a cache, make a query only if they are not cached
+   // auto gotAttrs = _fieldAttributesCache.find(cpIndex); 
+   // if (gotAttrs == _fieldAttributesCache.end())
+      // {
+      // _stream->write(JITaaS::J9ServerMessageType::ResolvedMethod_fieldAttributes, _remoteMirror, cpIndex, isStore, needAOTValidation);
+      // auto recv = _stream->read<TR_J9MethodFieldAttributes>();
+      // gotAttrs = _fieldAttributesCache.insert({cpIndex, std::get<0>(recv)}).first;
+      // }
    
    // access attributes from the cache
-   auto attrs = gotAttrs->second;
-   *fieldOffset = attrs.resolvedFieldAttribute.fieldOffset;
-   *type = attrs.resolvedFieldAttribute.type;
-   *volatileP = attrs.resolvedFieldAttribute.volatileP;
-   if (isFinal) *isFinal = attrs.resolvedFieldAttribute.isFinal;
-   if (isPrivate) *isPrivate = attrs.resolvedFieldAttribute.isPrivate;
-   if (unresolvedInCP) *unresolvedInCP = attrs.resolvedFieldAttribute.unresolvedInCP;
-   return attrs.resolvedFieldAttribute.result;
+   return false;
    }
 
 TR_ResolvedMethod *
