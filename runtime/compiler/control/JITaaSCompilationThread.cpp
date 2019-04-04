@@ -3012,6 +3012,11 @@ ClientSessionData::ClassInfo::freeClassInfo()
       jitPersistentFree(_constantClassPoolCache);
       }
 
+   // if (_resolvedMethodsCache)
+      // {
+      // _resolvedMethodsCache->~UnorderedMap<TR_ResolvedMethodKey, TR_ResolvedMethodCacheEntry>();
+      // jitPersistentFree(_resolvedMethodsCache);
+      // }
    }
 
 ClientSessionData::VMInfo *

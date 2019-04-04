@@ -31,6 +31,8 @@
 class TR_PersistentClassInfo;
 class TR_IPBytecodeHashTableEntry;
 struct TR_RemoteROMStringKey;
+struct TR_ResolvedMethodKey;
+struct TR_ResolvedMethodCacheEntry;
 
 using IPTable_t = PersistentUnorderedMap<uint32_t, TR_IPBytecodeHashTableEntry*>;
 using IPTableHeapEntry = UnorderedMap<uint32_t, TR_IPBytecodeHashTableEntry*>;
@@ -65,6 +67,7 @@ class ClientSessionData
       uintptrj_t totalInstanceSize;
       PersistentUnorderedMap<int32_t, TR_OpaqueClassBlock *> *_classOfStaticCache;
       PersistentUnorderedMap<int32_t, TR_OpaqueClassBlock *> *_constantClassPoolCache;
+      // UnorderedMap<TR_ResolvedMethodKey,TR_ResolvedMethodCacheEntry> *_resolvedMethodsCache; 
       };
 
    struct J9MethodInfo

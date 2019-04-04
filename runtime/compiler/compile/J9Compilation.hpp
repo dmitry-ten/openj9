@@ -56,6 +56,8 @@ class TR_ExternalValueProfileInfo;
 class TR_J9VM;
 class TR_AccessedProfileInfo;
 class TR_RelocationRuntime;
+struct TR_ResolvedMethodKey;
+struct TR_ResolvedMethodCacheEntry;
 namespace TR { class IlGenRequest; }
 
 #define COMPILATION_AOT_HAS_INVOKEHANDLE -9
@@ -325,6 +327,7 @@ class OMR_EXTENSIBLE Compilation : public OMR::CompilationConnector
    void setOSRProhibitedOverRangeOfTrees() { _osrProhibitedOverRangeOfTrees = true; }
    bool isOSRProhibitedOverRangeOfTrees() { return _osrProhibitedOverRangeOfTrees; }
 
+   UnorderedMap<TR_ResolvedMethodKey, TR_ResolvedMethodCacheEntry> *getResolvedMethodsCache() { return _resolvedMethodsCache; }
 private:
    enum CachedClassPointerId
       {
@@ -417,6 +420,8 @@ private:
 
    TR::SymbolValidationManager *_symbolValidationManager;
    bool _osrProhibitedOverRangeOfTrees;
+   
+   UnorderedMap<TR_ResolvedMethodKey, TR_ResolvedMethodCacheEntry> *_resolvedMethodsCache;
    };
 
 }

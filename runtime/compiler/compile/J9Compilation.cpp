@@ -52,6 +52,7 @@
 #include "optimizer/TransformUtil.hpp"
 #include "runtime/RuntimeAssumptions.hpp"
 #include "runtime/J9Profiler.hpp"
+#include "env/j9methodServer.hpp"
 
 #include "j9.h"
 #include "j9cfg.h"
@@ -197,6 +198,8 @@ J9::Compilation::Compilation(int32_t id,
 
    for (int i = 0; i < CACHED_CLASS_POINTER_COUNT; i++)
       _cachedClassPointers[i] = NULL;
+
+   _resolvedMethodsCache = new (m->trHeapMemory()) UnorderedMap<TR_ResolvedMethodKey, TR_ResolvedMethodCacheEntry>(UnorderedMap<TR_ResolvedMethodKey, TR_ResolvedMethodCacheEntry>::allocator_type(trMemory()->heapMemoryRegion()));
    }
 
 J9::Compilation::~Compilation()

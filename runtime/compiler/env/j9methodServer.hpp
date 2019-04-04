@@ -125,12 +125,14 @@ struct
 TR_ResolvedMethodKey
    {
    TR_ResolvedMethodType type;
+   J9Class *ramClass;
+   J9Method *ramMethod;
    int32_t cpIndex;
    TR_OpaqueClassBlock *classObject; // only set for resolved interface methods
 
    bool operator==(const TR_ResolvedMethodKey &other) const
       {
-      return type == other.type && cpIndex == other.cpIndex && classObject == other.classObject;
+      return ramClass == other.ramClass && ramMethod == other.ramMethod && type == other.type && cpIndex == other.cpIndex && classObject == other.classObject;
       }
    };
 
@@ -144,7 +146,12 @@ namespace std
       std::size_t operator()(const TR_ResolvedMethodKey &k) const
          {
          // Compute a hash by hashing each part separately and then XORing them.
-         return std::hash<int32_t>()(static_cast<int32_t>(k.type)) ^ std::hash<int32_t>()(k.cpIndex) ^ std::hash<TR_OpaqueClassBlock *>()(k.classObject);
+         return 
+            std::hash<J9Class *>()(static_cast<J9Class *>(k.ramClass)) ^
+            std::hash<J9Method *>()(static_cast<J9Method *>(k.ramMethod)) ^
+            std::hash<int32_t>()(static_cast<int32_t>(k.type)) ^
+            std::hash<int32_t>()(k.cpIndex) ^
+            std::hash<TR_OpaqueClassBlock *>()(k.classObject);
          }
       };
    }
@@ -154,6 +161,9 @@ struct TR_ResolvedMethodCacheEntry
    TR_ResolvedMethod *resolvedMethod;
    bool unresolvedInCP;
    };
+
+typedef TR::typed_allocator<std::pair<TR_ResolvedMethodKey, TR_ResolvedMethodCacheEntry>, TR::Region&> ResolvedMethodsCacheAllocator;
+typedef std::unordered_map<TR_ResolvedMethodKey, TR_ResolvedMethodCacheEntry, ResolvedMethodsCacheAllocator> ResolvedMethodsCacheAllcoator;
 
 class TR_ResolvedJ9JITaaSServerMethod : public TR_ResolvedJ9Method
    {
@@ -232,6 +242,7 @@ public:
 protected:
    JITaaS::J9ServerStream *_stream;
    static void packMethodInfo(TR_ResolvedJ9JITaaSServerMethodInfo &methodInfo, TR_ResolvedJ9Method *resolvedMethod, TR_FrontEnd *fe);
+   TR_ResolvedMethodKey getResolvedMethodKey(TR_ResolvedMethodType type, int32_t cpIndex, TR_OpaqueClassBlock *classObject=NULL) { return {type, _ramClass, _ramMethod, cpIndex, classObject}; }
    UnorderedMap<uint32_t, TR_J9MethodFieldAttributes> _fieldAttributesCache;
    UnorderedMap<uint32_t, TR_J9MethodFieldAttributes> _staticAttributesCache;
 

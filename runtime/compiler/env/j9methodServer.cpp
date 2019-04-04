@@ -246,7 +246,7 @@ TR_ResolvedJ9JITaaSServerMethod::getResolvedPossiblyPrivateVirtualMethod(TR::Com
    return 0;
 #else
    TR_ResolvedMethod *resolvedMethod = nullptr;
-   if (getCachedResolvedMethod({TR_ResolvedMethodType::VirtualFromCP, cpIndex, nullptr}, &resolvedMethod, unresolvedInCP)) 
+   if (getCachedResolvedMethod(getResolvedMethodKey(TR_ResolvedMethodType::VirtualFromCP, cpIndex), &resolvedMethod, unresolvedInCP)) 
       return resolvedMethod;
 
    // See if the constant pool entry is already resolved or not
@@ -310,7 +310,7 @@ TR_ResolvedJ9JITaaSServerMethod::getResolvedPossiblyPrivateVirtualMethod(TR::Com
       TR::DebugCounter::incStaticDebugCounter(comp, "resources.resolvedMethods/virtual:#bytes", sizeof(TR_ResolvedJ9Method));
       
       }
-   cacheResolvedMethod({TR_ResolvedMethodType::VirtualFromCP, cpIndex, nullptr}, resolvedMethod, unresolvedInCP);
+   cacheResolvedMethod(getResolvedMethodKey(TR_ResolvedMethodType::VirtualFromCP, cpIndex), resolvedMethod, unresolvedInCP);
 
    return resolvedMethod;
 #endif
@@ -448,7 +448,7 @@ TR_ResolvedJ9JITaaSServerMethod::getResolvedStaticMethod(TR::Compilation * comp,
    TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
 
    TR_ResolvedMethod *resolvedMethod = nullptr;
-   if (getCachedResolvedMethod({TR_ResolvedMethodType::Static, cpIndex, nullptr}, &resolvedMethod, unresolvedInCP)) 
+   if (getCachedResolvedMethod(getResolvedMethodKey(TR_ResolvedMethodType::Static, cpIndex), &resolvedMethod, unresolvedInCP)) 
       return resolvedMethod;
 
    _stream->write(JITaaS::J9ServerMessageType::ResolvedMethod_getResolvedStaticMethodAndMirror, _remoteMirror, cpIndex);
@@ -495,7 +495,7 @@ TR_ResolvedJ9JITaaSServerMethod::getResolvedStaticMethod(TR::Compilation * comp,
       if (unresolvedInCP)
          handleUnresolvedStaticMethodInCP(cpIndex, unresolvedInCP);
       }
-   cacheResolvedMethod({TR_ResolvedMethodType::Static, cpIndex, nullptr}, resolvedMethod, unresolvedInCP);
+   cacheResolvedMethod(getResolvedMethodKey(TR_ResolvedMethodType::Static, cpIndex), resolvedMethod, unresolvedInCP);
 
    return resolvedMethod;
    }
@@ -507,7 +507,7 @@ TR_ResolvedJ9JITaaSServerMethod::getResolvedSpecialMethod(TR::Compilation * comp
    TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
    
    TR_ResolvedMethod *resolvedMethod = nullptr;
-   if (getCachedResolvedMethod({TR_ResolvedMethodType::Special, cpIndex, nullptr}, &resolvedMethod, unresolvedInCP)) 
+   if (getCachedResolvedMethod(getResolvedMethodKey(TR_ResolvedMethodType::Special, cpIndex), &resolvedMethod, unresolvedInCP)) 
       return resolvedMethod;
 
    if (unresolvedInCP)
@@ -546,7 +546,7 @@ TR_ResolvedJ9JITaaSServerMethod::getResolvedSpecialMethod(TR::Compilation * comp
          handleUnresolvedVirtualMethodInCP(cpIndex, unresolvedInCP);
       }
 
-   cacheResolvedMethod({TR_ResolvedMethodType::Special, cpIndex, nullptr}, resolvedMethod, unresolvedInCP);
+   cacheResolvedMethod(getResolvedMethodKey(TR_ResolvedMethodType::Special, cpIndex), resolvedMethod, unresolvedInCP);
    return resolvedMethod;
    }
 
@@ -616,7 +616,7 @@ TR_ResolvedMethod *
 TR_ResolvedJ9JITaaSServerMethod::getResolvedInterfaceMethod(TR::Compilation * comp, TR_OpaqueClassBlock * classObject, I_32 cpIndex)
    {
    TR_ResolvedMethod *resolvedMethod = nullptr;
-   if (getCachedResolvedMethod({TR_ResolvedMethodType::Interface, cpIndex, classObject}, &resolvedMethod, nullptr))
+   if (getCachedResolvedMethod(getResolvedMethodKey(TR_ResolvedMethodType::Interface, cpIndex, classObject), &resolvedMethod, nullptr))
       return resolvedMethod;
    
    _stream->write(JITaaS::J9ServerMessageType::ResolvedMethod_getResolvedInterfaceMethodAndMirror_3, getPersistentIdentifier(), classObject, cpIndex, _remoteMirror);
@@ -661,7 +661,7 @@ TR_ResolvedJ9JITaaSServerMethod::getResolvedInterfaceMethod(TR::Compilation * co
       }
    // for resolved interface method, need to know cpIndex, as well as classObject
    // to uniquely identify it.
-   cacheResolvedMethod({TR_ResolvedMethodType::Interface, cpIndex, classObject}, resolvedMethod, nullptr);
+   cacheResolvedMethod(getResolvedMethodKey(TR_ResolvedMethodType::Interface, cpIndex, classObject), resolvedMethod, nullptr);
    if (resolvedMethod)
       return resolvedMethod;
 
@@ -740,7 +740,7 @@ TR_ResolvedJ9JITaaSServerMethod::getResolvedVirtualMethod(TR::Compilation * comp
 
    TR_ResolvedMethod *resolvedMethod = NULL;
    // If method is already cached, return right away
-   if (getCachedResolvedMethod({TR_ResolvedMethodType::VirtualFromOffset, virtualCallOffset, classObject}, &resolvedMethod)) 
+   if (getCachedResolvedMethod(getResolvedMethodKey(TR_ResolvedMethodType::VirtualFromOffset, virtualCallOffset, classObject), &resolvedMethod)) 
       return resolvedMethod;
 
    // Remote call finds RAM method at offset and creates a resolved method at the client
@@ -759,7 +759,7 @@ TR_ResolvedJ9JITaaSServerMethod::getResolvedVirtualMethod(TR::Compilation * comp
       {
       resolvedMethod = ramMethod ? new (comp->trHeapMemory()) TR_ResolvedJ9JITaaSServerMethod((TR_OpaqueMethodBlock *) ramMethod, _fe, comp->trMemory(), methodInfo, this) : 0;
       }
-   cacheResolvedMethod({TR_ResolvedMethodType::VirtualFromOffset, virtualCallOffset, classObject}, resolvedMethod);
+   cacheResolvedMethod(getResolvedMethodKey(TR_ResolvedMethodType::VirtualFromOffset, virtualCallOffset, classObject), resolvedMethod);
    return resolvedMethod;
    }
 
@@ -1480,17 +1480,33 @@ TR_ResolvedJ9JITaaSServerMethod::cacheResolvedMethod(TR_ResolvedMethodKey key, T
    {
    if (!_useCaching)
       return;
-   TR::Compilation *comp = _fe->_compInfoPT->getCompilation();
+   auto compInfoPT = _fe->_compInfoPT;
+   TR::Compilation *comp = compInfoPT->getCompilation();
    if (comp->compileRelocatableCode() && comp->getOption(TR_UseSymbolValidationManager) && comp->getSymbolValidationManager()->inHeuristicRegion())
       // Problem: If inside of heuristic region, will not create SVM record, so if the same resolved method is queried again,
       // but outside of heuristic region, we would return cached pointer and not create the validation record, which is wrong.
       // Temporary solution: don't cache resolved methods if in heuristic region
       // In a later change should fix it properly by creating SVM record even if retrieved it from cache.
       return;
+   if (!resolvedMethod)
+      return;
 
-   TR_ASSERT(_resolvedMethodsCache.find(key) == _resolvedMethodsCache.end(), "Should not cache the same method twice");
+   auto resolvedMethodsCache = comp->getResolvedMethodsCache();
+   // TR_ASSERT(_resolvedMethodsCache.find(key) == _resolvedMethodsCache.end(), "Should not cache the same method twice");
 
-   _resolvedMethodsCache.insert({key, {resolvedMethod, unresolvedInCP ? *unresolvedInCP : false}});
+   resolvedMethodsCache->insert({key, {resolvedMethod, unresolvedInCP ? *unresolvedInCP : false}});
+      // {
+      // OMR::CriticalSection getRemoteROMClass(compInfoPT->getClientData()->getROMMapMonitor()); 
+      // auto &resolvedMethodsCache = getJ9ClassInfo(compInfoPT, _ramClass)._resolvedMethodsCache;
+      // // initialize cache if it hasn't been done yet
+      // if (!resolvedMethodsCache)
+         // {
+         // resolvedMethodsCache = new (PERSISTENT_NEW) UnorderedMap<TR_ResolvedMethodKey, TR_ResolvedMethodCacheEntry>(UnorderedMap<TR_ResolvedMethodKey, TR_ResolvedMethodCacheEntry>::allocator_type(TR::Compiler->persistentAllocator()));
+         // }
+      // resolvedMethodsCache->insert({key, {resolvedMethod, unresolvedInCP ? *unresolvedInCP : false}});
+      // }
+   // Attempting to cache resolved methods globally
+   
    }
 
 // retrieve a resolved method from the cache
@@ -1502,12 +1518,33 @@ TR_ResolvedJ9JITaaSServerMethod::getCachedResolvedMethod(TR_ResolvedMethodKey ke
    if(!_useCaching)
       return false;
 
-   auto it = _resolvedMethodsCache.find(key);
-   if (it != _resolvedMethodsCache.end())
+   // auto it = _resolvedMethodsCache.find(key);
+   // if (it != _resolvedMethodsCache.end())
+      // {
+      // auto entry = it->second;
+      // if (resolvedMethod)
+         // *resolvedMethod = entry.resolvedMethod;
+      // if (unresolvedInCP)
+         // *unresolvedInCP = entry.unresolvedInCP;
+      // return true;
+      // }
+   auto comp = _fe->_compInfoPT->getCompilation();
+   auto resolvedMethodsCache = comp->getResolvedMethodsCache();
+
+   auto it = resolvedMethodsCache->find(key);
+   if (it != resolvedMethodsCache->end())
       {
       auto entry = it->second;
       if (resolvedMethod)
+         {
          *resolvedMethod = entry.resolvedMethod;
+         if (entry.resolvedMethod && entry.resolvedMethod->owningMethod() != this)
+            {
+            entry.resolvedMethod->setOwningMethod(this);
+            // fprintf(stderr, "owning methods do not  match\n");
+            // return false;
+            }
+         }
       if (unresolvedInCP)
          *unresolvedInCP = entry.unresolvedInCP;
       return true;
