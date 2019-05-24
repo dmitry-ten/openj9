@@ -135,6 +135,22 @@ namespace JITaaS
          }
       static inline Any::TypeCase typeCase() { return Any::kMethodInfoV; }
       };
+   // TR_ClassInfoWrapper
+   template <> struct AnyPrimitive<const TR_ClassInfoWrapper>
+      {
+      static inline TR_ClassInfoWrapper read(const Any *msg)
+         {
+         const RAMClassInfo &data = msg->class_info_v();
+         TR_ClassInfoWrapper classInfo(data);
+         return classInfo;
+         }
+      static inline void write(Any *msg, const TR_ClassInfoWrapper &val)
+         {
+         RAMClassInfo *classInfo = msg->mutable_class_info_v();
+         val.serialize(classInfo);
+         }
+      static inline Any::TypeCase typeCase() { return Any::kClassInfoV; }
+      };
    // vector
    template <typename T> struct AnyPrimitive<T, typename std::enable_if<std::is_same<T, std::vector<typename T::value_type>>::value>::type>
       {

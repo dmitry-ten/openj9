@@ -79,33 +79,16 @@ class ClientSessionData
       {
       void freeClassInfo(); // this method is in place of a destructor. We can't have destructor
       // because it would be called after inserting ClassInfo into the ROM map, freeing romClass
+      TR_ClassInfoWrapper classInfoWrapper;
       J9ROMClass *romClass; // romClass content exists in persistentMemory at the server
-      J9ROMClass *remoteRomClass; // pointer to the corresponding ROM class on the client
-      J9Method *methodsOfClass;
-      // Fields meaningful for arrays
-      TR_OpaqueClassBlock *baseComponentClass; 
-      int32_t numDimensions;
       PersistentUnorderedMap<TR_RemoteROMStringKey, std::string> *_remoteROMStringsCache; // cached strings from the client
       PersistentUnorderedMap<int32_t, std::string> *_fieldOrStaticNameCache;
-      TR_OpaqueClassBlock *parentClass;
-      PersistentVector<TR_OpaqueClassBlock *> *interfaces; 
-      bool classHasFinalFields;
-      uintptrj_t classDepthAndFlags;
-      bool classInitialized;
-      uint32_t byteOffsetToLockword;
-      TR_OpaqueClassBlock * leafComponentClass;
-      void *classLoader;
-      TR_OpaqueClassBlock * hostClass;
-      TR_OpaqueClassBlock * componentClass; // caching the componentType of the J9ArrayClass
-      TR_OpaqueClassBlock * arrayClass;
-      uintptrj_t totalInstanceSize;
       PersistentUnorderedMap<int32_t, TR_OpaqueClassBlock *> *_classOfStaticCache;
       PersistentUnorderedMap<int32_t, TR_OpaqueClassBlock *> *_constantClassPoolCache;
       TR_FieldAttributesCache *_fieldAttributesCache;
       TR_FieldAttributesCache *_staticAttributesCache;
       TR_FieldAttributesCache *_fieldAttributesCacheAOT;
       TR_FieldAttributesCache *_staticAttributesCacheAOT;
-      J9ConstantPool *_constantPool;
       };
 
    struct J9MethodInfo
@@ -338,8 +321,8 @@ class JITaaSHelpers
       };
    // NOTE: when adding new elements to this tuple, add them to the end,
    // to not mess with the established order.
-   using ClassInfoTuple = std::tuple<std::string, J9Method *, TR_OpaqueClassBlock *, int32_t, TR_OpaqueClassBlock *, std::vector<TR_OpaqueClassBlock *>, std::vector<uint8_t>, bool, uintptrj_t , bool, uint32_t, TR_OpaqueClassBlock *, void *, TR_OpaqueClassBlock *, TR_OpaqueClassBlock *, TR_OpaqueClassBlock *, uintptrj_t, J9ROMClass *, uintptrj_t>;
-   static ClassInfoTuple packRemoteROMClassInfo(J9Class *clazz, J9VMThread *vmThread, TR_Memory *trMemory);
+   // using ClassInfoTuple = std::tuple<std::string, J9Method *, TR_OpaqueClassBlock *, int32_t, TR_OpaqueClassBlock *, std::vector<TR_OpaqueClassBlock *>, std::vector<uint8_t>, bool, uintptrj_t , bool, uint32_t, TR_OpaqueClassBlock *, void *, TR_OpaqueClassBlock *, TR_OpaqueClassBlock *, TR_OpaqueClassBlock *, uintptrj_t, J9ROMClass *, uintptrj_t>;
+   static void packRemoteROMClassInfo(J9Class *clazz, J9VMThread *vmThread, TR_Memory *trMemory, TR_ClassInfoWrapper &classInfo);
    static void cacheRemoteROMClass(ClientSessionData *clientSessionData, J9Class *clazz, J9ROMClass *romClass, ClassInfoTuple *classInfoTuple);
    static void cacheRemoteROMClass(ClientSessionData *clientSessionData, J9Class *clazz, J9ROMClass *romClass, ClassInfoTuple *classInfoTuple, ClientSessionData::ClassInfo &classInfo);
    static J9ROMClass *getRemoteROMClassIfCached(ClientSessionData *clientSessionData, J9Class *clazz);

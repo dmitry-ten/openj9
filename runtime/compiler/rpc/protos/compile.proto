@@ -37,6 +37,7 @@ message Any
       bool bool_v = 7;
       AnyData vector_v = 8;
       ResolvedMethodInfo method_info_v = 9;
+      RAMClassInfo class_info_v = 10;
       }
    }
 
@@ -47,24 +48,48 @@ message AnyData
 
 message ResolvedMethodInfo
    {
-   uint64 remoteMirror = 1;
-   uint64 literals = 2;
-   uint64 ramClass = 3;
-   uint64 methodIndex = 4;
-   uint64 jniProperties = 5;
-   uint64 jniTargetAddress = 6;
-   bool isINterpreted = 7;
-   bool isJNINative = 8;
-   bool isMethodInValidLibrary = 9;
-   int32 mandatoryRm = 10;
-   int32 rm = 11;
-   uint64 startAddressForJittedMethod = 12;
-   bool virtualMethodIsOverridden = 13;
-   uint64 addressContainingIsOverriddenBit = 14;
-   uint64 classLoader = 15;
-   bytes bodyInfoStr = 16;
-   bytes methodInfoStr = 17;
-   bytes entryStr = 18;
+   string romClassStr = 1;
+   uint64 remoteMirror = 2;
+   uint64 literals = 3;
+   uint64 ramClass = 4;
+   uint64 methodIndex = 5;
+   uint64 jniProperties = 6;
+   uint64 jniTargetAddress = 7;
+   bool isINterpreted = 8;
+   bool isJNINative = 9;
+   bool isMethodInValidLibrary = 10;
+   int32 mandatoryRm = 11;
+   int32 rm = 12;
+   uint64 startAddressForJittedMethod = 13;
+   bool virtualMethodIsOverridden = 14;
+   uint64 addressContainingIsOverriddenBit = 15;
+   uint64 classLoader = 16;
+   bytes bodyInfoStr = 17;
+   bytes methodInfoStr = 18;
+   bytes entryStr = 19;
+   }
+
+message RAMClassInfo
+   {
+   string romClassStr = 1;
+   uint64 remoteRomClass = 2;
+   uint64 methodsOfClass = 3;
+   uint64 baseComponentClass = 4;
+   int32 numDimensions = 5;
+   repeated bool methodTracingInfo = 6;
+   uint64 parentClass = 7;
+   repeated uint64 interfaces = 8;
+   bool classHasFinalFields = 9;
+   uint64 classDepthAndFlags = 10;
+   bool classInitialized = 11;
+   uint32 byteOffsetToLockword = 12;
+   uint64 leafComponentClass = 13;
+   uint64 classLoader = 14;
+   uint64 hostClass = 15;
+   uint64 componentClass = 16;
+   uint64 arrayClass = 17;
+   uint64 totalInstanceSize = 18;
+   uint64 constantPool = 19;
    }
 
 enum J9ServerMessageType
