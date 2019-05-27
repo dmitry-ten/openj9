@@ -125,6 +125,7 @@ namespace JITaaS
          {
          std::vector<typename T::value_type> out;
          auto &items = msg->vector_v();
+         out.reserve(items.data_size());
          for (size_t i = 0; i < items.data_size(); i++)
             {
             auto item = items.data(i);
@@ -135,6 +136,8 @@ namespace JITaaS
       static inline void write(Any *msg, const T &val)
          {
          auto data = msg->mutable_vector_v();
+         auto internalVector = data->mutable_data();
+         internalVector->Reserve(val.size());
          for (const typename T::value_type& item : val)
             {
             AnyPrimitive<const typename T::value_type>::write(data->add_data(), item);
