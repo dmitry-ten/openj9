@@ -230,6 +230,64 @@ class ClientSessionData
       {
       void freeClassInfo(); // this method is in place of a destructor. We can't have destructor
       // because it would be called after inserting ClassInfo into the ROM map, freeing romClass
+      /* Template method for allocating a cache of type T on the heap.
+       * Cache pointer must be NULL.
+       */
+
+      template <typename T>
+      bool initializePersistentCache(T* &cache)
+         {
+         // Initialize map
+         TR_ASSERT(!cache, "Cache already initialized");
+         cache = new (PERSISTENT_NEW) T(typename T::allocator_type(TR::Compiler->persistentAllocator()));
+         return cache != NULL;
+         }
+      /* Template method for storing key-value pairs (of types K and V respectively)
+       * to a heap-allocated unordered map.
+       * If a map is NULL, will allocate it.
+       */
+      template <typename K, typename V>
+      void cacheToPersistentMap(PersistentUnorderedMap<K, V>* &map, const K &key, const V &value)
+         {
+         if (!map)
+            initializePersistentCache(map);
+         map->insert({ key, value });
+         }
+
+      /* Template method for retrieving values from heap-allocated unordered map.
+       * If the map is NULL or value is not found, returns false.
+       * Otherwise, sets value to retrieved value and returns true
+       */
+      template <typename K, typename V>
+      bool getCachedValueFromPersistentMap(PersistentUnorderedMap<K, V>* &map, const K &key, V &value)
+         {
+         if (!map)
+            return false;
+         auto it = map->find(key);
+         if (it != map->end())
+            {
+            // Found entry at a given key
+            value = it->second;
+            return true;
+            }
+         return false;
+         }
+
+      /* Template method for clearing a heap-allocated cache.
+       * Simply sets pointer to cache to NULL.
+       */
+      template <typename T>
+      void clearPersistentCache(T* &cache)
+         {
+         // Since cache was heap-allocated,
+         // memory will be released automatically at the end of the compilation
+         if (cache)
+            {
+            cache->~T();
+            jitPersistentFree(cache);
+            }
+         }
+
       J9ROMClass *_romClass; // romClass content exists in persistentMemory at the server
       J9ROMClass *_remoteRomClass; // pointer to the corresponding ROM class on the client
       J9Method *_methodsOfClass;
@@ -381,6 +439,9 @@ class ClientSessionData
    TR::Monitor *getThunkSetMonitor() { return _thunkSetMonitor; }
    PersistentUnorderedMap<std::pair<std::string, bool>, void *> &getRegisteredJ2IThunkMap() { return _registeredJ2IThunksMap; }
    PersistentUnorderedSet<std::pair<std::string, bool>> &getRegisteredInvokeExactJ2IThunkSet() { return _registeredInvokeExactJ2IThunksSet; }
+
+   void cacheClassFromConstantPool(J9Class *ramClass, int32_t cpIndex, TR_OpaqueClassBlock *cpClass);
+   bool getCachedClassFromConstantPool(J9Class *ramClass, int32_t cpIndex, TR_OpaqueClassBlock* &cpClass);
 
    template <typename map, typename key>
    void purgeCache(std::vector<ClassUnloadedData> *unloadedClasses, map m, key ClassUnloadedData::*k);

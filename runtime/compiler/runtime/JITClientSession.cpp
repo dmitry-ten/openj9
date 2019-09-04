@@ -305,11 +305,7 @@ ClientSessionData::ClassInfo::freeClassInfo()
       jitPersistentFree(_classOfStaticCache);
       }
 
-   if (_constantClassPoolCache)
-      {
-      _constantClassPoolCache->~PersistentUnorderedMap<int32_t, TR_OpaqueClassBlock *>();
-      jitPersistentFree(_constantClassPoolCache);
-      }
+   clearPersistentCache(_constantClassPoolCache);
 
    if (_fieldAttributesCache)
       {
@@ -464,6 +460,25 @@ void ClientSessionData::purgeCache(std::vector<ClassUnloadedData> *unloadedClass
       }
    }
 
+void
+ClientSessionData::cacheClassFromConstantPool(J9Class *ramClass, int32_t cpIndex, TR_OpaqueClassBlock *cpClass)
+   {
+   OMR::CriticalSection getRemoteROMClass(getROMMapMonitor());
+   auto it = _romClassMap.find(ramClass);
+   TR_ASSERT_FATAL(it != _romClassMap.end(), "ClassInfo for class %p is not in the class map", ramClass);
+   auto classInfo = it->second;
+   auto &constantClassPoolCache = classInfo._constantClassPoolCache;
+   classInfo.cacheToPersistentMap(constantClassPoolCache, cpIndex, cpClass);
+   }
+
+bool
+ClientSessionData::getCachedClassFromConstantPool(J9Class *ramClass, int32_t cpIndex, TR_OpaqueClassBlock* &cpClass)
+   {
+   OMR::CriticalSection getRemoteROMClass(getROMMapMonitor());
+   auto classInfo = _romClassMap.find(ramClass)->second;
+   auto &constantClassPoolCache = classInfo._constantClassPoolCache;
+   return classInfo.getCachedValueFromPersistentMap(constantClassPoolCache, cpIndex, cpClass);
+   }
 
 ClientSessionHT*
 ClientSessionHT::allocate()
