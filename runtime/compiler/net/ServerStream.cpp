@@ -285,8 +285,9 @@ ServerStream::serveRemoteCompilationRequests(BaseCompileDispatcher *compiler, TR
       ServerStream *stream = new (PERSISTENT_NEW) ServerStream(connfd, bio);
 #else
       ServerStream *stream = new (PERSISTENT_NEW) ServerStream(connfd);
+      ServerStreamRaw *streamRaw = new (PERSISTENT_NEW) ServerStreamRaw(connfd);
 #endif
-      compiler->compile(stream);
+      compiler->compile(stream, streamRaw);
       }
 
 #if defined(JITSERVER_ENABLE_SSL)

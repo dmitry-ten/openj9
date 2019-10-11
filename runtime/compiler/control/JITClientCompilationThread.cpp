@@ -152,7 +152,7 @@ handler_IProfiler_profilingSample(JITServer::ClientStream *client, TR_J9VM *fe, 
    }
 
 static bool
-handleServerMessage(JITServer::ClientStream *client, TR_J9VM *fe, JITServer::MessageType &response)
+handleServerMessage(JITServer::ClientStream *client, JITServer::ClientStreamRaw *clientRaw, TR_J9VM *fe, JITServer::MessageType &response)
    {
    using JITServer::MessageType;
    TR::CompilationInfoPerThread *compInfoPT = fe->_compInfoPT;
@@ -168,7 +168,112 @@ handleServerMessage(JITServer::ClientStream *client, TR_J9VM *fe, JITServer::Mes
 
    releaseVMAccess(vmThread);
 
-   response = client->read();
+   int msgClass;
+   int bytesRead = read(client->getConnFD(), &msgClass, sizeof(int));
+   if (!bytesRead)
+      fprintf(stderr, "Could not read msgClass\n");
+   if (msgClass == 0)
+      {
+      // do nothing for now
+      response = client->read();
+      }
+   else
+      {
+      // fprintf(stderr, "Using raw connection\n");
+      // Handle the only raw msg we have rn
+      JITServer::TempBuffer2 buffer = clientRaw->readTempBuffer2Raw();
+      acquireVMAccessNoSuspend(vmThread);
+      // Update statistics for server message type
+      JITServerHelpers::serverMsgTypeCount[response] += 1;
+
+      // If JVM has unloaded classes inform the server to abort this compilation
+      uint8_t interruptReason = compInfoPT->compilationShouldBeInterrupted();
+      if (interruptReason)
+         {
+         // Inform the server if compilation is not yet complete
+         if ((response != MessageType::compilationCode) &&
+             (response != MessageType::compilationFailure))
+            client->writeError(JITServer::MessageType::compilationInterrupted, 0 /* placeholder */);
+
+         if (TR::Options::isAnyVerboseOptionSet(TR_VerboseJITServer, TR_VerboseCompilationDispatch))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_FAILURE, "Interrupting remote compilation (interruptReason %u) in handleServerMessage of %s @ %s", 
+                                                             interruptReason, comp->signature(), comp->getHotnessName());
+         comp->failCompilation<TR::CompilationInterrupted>("Compilation interrupted in handleServerMessage");
+         }
+
+      TR_ResolvedJ9Method *method1 = buffer._resolvedMethod1;
+      TR_ResolvedJ9Method *method2 = buffer._resolvedMethod2;
+      int32_t cpIndex1 = buffer._cpIndex1;
+      int32_t cpIndex2 = buffer._cpIndex2;
+      bool isStatic = buffer._isStatic;
+      bool identical = false;
+      bool compareFields = false;
+      UDATA f1 = 0, f2 = 0;
+      J9Class *declaringClass1 = NULL, *declaringClass2 = NULL;
+      J9ConstantPool *cp1 = (J9ConstantPool *) method1->ramConstantPool();
+      J9ConstantPool *cp2 = (J9ConstantPool *) method2->ramConstantPool();
+
+      // fprintf(stderr, "method1=%p method2=%p cpIndex1=%d cpIndex2=%d\n", method1, method2, cpIndex1, cpIndex2);
+
+      // The following code is mostly a copy of jitFieldsAreIdentical from runtime/jit_vm/ctsupport.c
+      // If that code changes, this will also need to change
+      J9RAMFieldRef *ramRef1 = (J9RAMFieldRef*) &(((J9RAMConstantPoolItem *)cp1)[cpIndex1]);
+
+      if (!isStatic)
+         {
+         if (!J9RAMFIELDREF_IS_RESOLVED(ramRef1))
+            {
+            compareFields = true;
+            }
+         else
+            {
+            J9RAMFieldRef *ramRef2 = (J9RAMFieldRef*) &(((J9RAMConstantPoolItem *)cp2)[cpIndex2]);
+            if (!J9RAMFIELDREF_IS_RESOLVED(ramRef2))
+               {
+               compareFields = true;
+               }
+            else if (ramRef1->valueOffset == ramRef2->valueOffset)
+               {
+               compareFields = true;
+               }
+            }
+         }
+      else
+         {
+         J9RAMStaticFieldRef *ramRef1 = ((J9RAMStaticFieldRef*) cp1) + cpIndex1;
+
+         if (!J9RAMSTATICFIELDREF_IS_RESOLVED(ramRef1))
+            {
+            compareFields = true;
+            }
+         else
+            {
+            J9RAMStaticFieldRef *ramRef2 = ((J9RAMStaticFieldRef*) cp2) + cpIndex2;
+            if (!J9RAMSTATICFIELDREF_IS_RESOLVED(ramRef2))
+               {
+               compareFields = true;
+               }
+            else if (ramRef1->valueOffset == ramRef2->valueOffset)
+               {
+               compareFields = true;
+               }
+            }
+         }
+      if (compareFields)
+         {
+          f1 = findField(fe->vmThread(), cp1, cpIndex1, isStatic, &declaringClass1);
+          if (f1)
+             f2 = findField(fe->vmThread(), cp2, cpIndex2, isStatic, &declaringClass2);
+         }
+
+      // fprintf(stderr, "about to write declaringClass1=%p declaringClass2=%p\n", declaringClass1, declaringClass2);
+      clientRaw->writeTempBufferRaw(declaringClass1, declaringClass2, f1, f2);
+
+      // fprintf(stderr, "VM access reacquired\n");
+      response = MessageType::VM_jitFieldsAreSame;
+
+      return false;
+      }
 
    // Re-acquire VM access and check for possible class unloading
    acquireVMAccessNoSuspend(vmThread);
@@ -2642,6 +2747,7 @@ remoteCompile(
    bool useAotCompilation = compInfoPT->getMethodBeingCompiled()->_useAotCompilation;
 
    JITServer::ClientStream *client = enableJITServerPerCompConn ? NULL : compInfoPT->getClientStream();
+   JITServer::ClientStreamRaw *clientRaw = enableJITServerPerCompConn ? NULL : compInfoPT->getClientStreamRaw();
    if (!client)
       {
       try
@@ -2649,14 +2755,22 @@ remoteCompile(
          if (JITServerHelpers::isServerAvailable())
             {
             client = new (PERSISTENT_NEW) JITServer::ClientStream(compInfo->getPersistentInfo());
+            clientRaw = new (PERSISTENT_NEW) JITServer::ClientStreamRaw(client->getConnFD());
             if (!enableJITServerPerCompConn)
+               {
                compInfoPT->setClientStream(client);
+               compInfoPT->setClientStreamRaw(clientRaw);
+               }
             }
          else if (JITServerHelpers::shouldRetryConnection(OMRPORT_FROM_J9PORT(compInfoPT->getJitConfig()->javaVM->portLibrary)))
             {
             client = new (PERSISTENT_NEW) JITServer::ClientStream(compInfo->getPersistentInfo());
+            clientRaw = new (PERSISTENT_NEW) JITServer::ClientStreamRaw(client->getConnFD());
             if (!enableJITServerPerCompConn)
+               {
                compInfoPT->setClientStream(client);
+               compInfoPT->setClientStreamRaw(clientRaw);
+               }
             JITServerHelpers::postStreamConnectionSuccess();
             }
          else
@@ -2749,7 +2863,7 @@ remoteCompile(
          }
 
       JITServer::MessageType response;
-      while(!handleServerMessage(client, compiler->fej9vm(), response));
+      while(!handleServerMessage(client, clientRaw, compiler->fej9vm(), response));
 
       if (JITServer::MessageType::compilationCode == response)
          {
@@ -2787,8 +2901,10 @@ remoteCompile(
       JITServerHelpers::postStreamFailure(OMRPORT_FROM_J9PORT(compInfoPT->getJitConfig()->javaVM->portLibrary));
 
       client->~ClientStream();
+      clientRaw->~ClientStreamRaw();
       TR_Memory::jitPersistentFree(client);
       compInfoPT->setClientStream(NULL);
+      compInfoPT->setClientStreamRaw(NULL);
 
       if (TR::Options::isAnyVerboseOptionSet(TR_VerboseJITServer, TR_VerboseCompilationDispatch))
           TR_VerboseLog::writeLineLocked(TR_Vlog_FAILURE,
@@ -2798,8 +2914,10 @@ remoteCompile(
    catch (const JITServer::StreamVersionIncompatible &e)
       {
       client->~ClientStream();
+      clientRaw->~ClientStreamRaw();
       TR_Memory::jitPersistentFree(client);
       compInfoPT->setClientStream(NULL);
+      compInfoPT->setClientStreamRaw(NULL);
       JITServer::ClientStream::incrementIncompatibilityCount(OMRPORT_FROM_J9PORT(compInfoPT->getJitConfig()->javaVM->portLibrary));
 
       if (TR::Options::isAnyVerboseOptionSet(TR_VerboseJITServer, TR_VerboseCompilationDispatch))
@@ -2929,7 +3047,9 @@ remoteCompile(
    if (enableJITServerPerCompConn && client)
       {
       client->~ClientStream();
+      clientRaw->~ClientStreamRaw();
       TR_Memory::jitPersistentFree(client);
+      TR_Memory::jitPersistentFree(clientRaw);
       }
    return metaData;
    }

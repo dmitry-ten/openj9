@@ -654,7 +654,7 @@ public:
    TR_MethodToBeCompiled *addMethodToBeCompiled(TR::IlGeneratorMethodDetails &details, void *pc, CompilationPriority priority,
       bool async, TR_OptimizationPlan *optPlan, bool *queued, TR_YesNoMaybe methodIsInSharedCache);
 #if defined(JITSERVER_SUPPORT)
-   TR_MethodToBeCompiled *addOutOfProcessMethodToBeCompiled(JITServer::ServerStream *stream);
+   TR_MethodToBeCompiled *addOutOfProcessMethodToBeCompiled(JITServer::ServerStream *stream, JITServer::ServerStreamRaw *streamRaw = NULL);
 #endif /* defined(JITSERVER_SUPPORT) */
    void                   queueEntry(TR_MethodToBeCompiled *entry);
    void                   recycleCompilationEntry(TR_MethodToBeCompiled *cur);

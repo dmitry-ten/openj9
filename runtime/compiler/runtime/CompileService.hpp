@@ -58,7 +58,7 @@ class J9CompileDispatcher : public JITServer::BaseCompileDispatcher
 public:
    J9CompileDispatcher(J9JITConfig *jitConfig) : _jitConfig(jitConfig) { }
 
-   void compile(JITServer::ServerStream *stream) override;
+   void compile(JITServer::ServerStream *stream, JITServer::ServerStreamRaw *streamRaw) override;
 
 private:
    J9JITConfig *_jitConfig;

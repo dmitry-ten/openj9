@@ -377,12 +377,20 @@ TR_J9ServerVM::jitFieldsAreSame(TR_ResolvedMethod * method1, I_32 cpIndex1, TR_R
             }
          if (needRemoteCall)
             {
-            stream->write(JITServer::MessageType::VM_jitFieldsAreSame, clientMethod1, cpIndex1, clientMethod2, cpIndex2, isStatic);
-            auto recv = stream->read<J9Class *, J9Class *, UDATA, UDATA>();
-            declaringClass1 = std::get<0>(recv);
-            declaringClass2 = std::get<1>(recv);
-            field1 = std::get<2>(recv);
-            field2 = std::get<3>(recv);
+            JITServer::ServerStreamRaw *streamRaw = _compInfoPT->getMethodBeingCompiled()->_streamRaw;
+            streamRaw->writeTempBuffer2Raw((TR_ResolvedJ9Method *) clientMethod1, (TR_ResolvedJ9Method *) clientMethod2, cpIndex1, cpIndex2, isStatic);
+            JITServer::TempBuffer buffer = streamRaw->readTempBufferRaw();
+            declaringClass1 = buffer._declaringClass1;
+            declaringClass2 = buffer._declaringClass2;
+            field1 = buffer._field1;
+            field2 = buffer._field2;
+   
+            // stream->write(JITServer::MessageType::VM_jitFieldsAreSame, clientMethod1, cpIndex1, clientMethod2, cpIndex2, isStatic);
+            // auto recv = stream->read<J9Class *, J9Class *, UDATA, UDATA>();
+            // declaringClass1 = std::get<0>(recv);
+            // declaringClass2 = std::get<1>(recv);
+            // field1 = std::get<2>(recv);
+            // field2 = std::get<3>(recv);
             bool remoteResult = false;
             if (declaringClass1 && declaringClass2 && field1 && field2)
                {

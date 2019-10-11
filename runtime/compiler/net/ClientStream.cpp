@@ -275,4 +275,8 @@ ClientStream::ClientStream(TR::PersistentInfo *info)
    }
 #endif
 
+ClientStreamRaw::ClientStreamRaw(int connfd)
+   : CommunicationStreamRaw(connfd)
+   {
+   }
 };

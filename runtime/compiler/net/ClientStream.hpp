@@ -27,7 +27,9 @@
 #include "compile/CompilationTypes.hpp"
 #include "ilgen/J9IlGeneratorMethodDetails.hpp"
 #include "net/ProtobufTypeConvert.hpp"
+#include "net/RawTypeConvert.hpp"
 #include "net/CommunicationStream.hpp"
+#include "net/CommunicationStreamRaw.hpp"
 
 #if defined(JITSERVER_ENABLE_SSL)
 #include <openssl/ssl.h>
@@ -37,6 +39,40 @@ class SSLInputStream;
 
 namespace JITServer
 {
+
+class ClientStreamRaw : public CommunicationStreamRaw
+   {
+public:
+   explicit ClientStreamRaw(int connfd);
+
+   void writeTempBufferRaw(J9Class *declaringClass1, J9Class *declaringClass2, UDATA field1, UDATA field2)
+      {
+      // serialize args into a contiguous buffer of bytes
+      TempBuffer buffer = {declaringClass1, declaringClass2, field1, field2};
+      writeBlocking(buffer);
+      }
+
+   TempBuffer readTempBufferRaw()
+      {
+      TempBuffer buffer;
+      readBlocking(buffer);
+      return buffer;
+      }
+
+   void writeTempBuffer2Raw(TR_ResolvedJ9Method *rm1, TR_ResolvedJ9Method *rm2, int32_t cpIndex1, int32_t cpIndex2, bool isStatic)
+      {
+      TempBuffer2 buffer = {rm1, rm2, cpIndex1, cpIndex2, isStatic};
+      writeBlocking(buffer);
+      }
+   
+   TempBuffer2 readTempBuffer2Raw()
+      {
+      TempBuffer2 buffer;
+      readBlocking(buffer);
+      return buffer;
+      }
+   };
+
 enum VersionCheckStatus
    {
    NOT_DONE = 0,

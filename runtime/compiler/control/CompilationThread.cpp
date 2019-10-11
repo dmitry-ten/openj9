@@ -3739,6 +3739,12 @@ TR::CompilationInfoPerThread::getStream()
    {
    return (_methodBeingCompiled) ? _methodBeingCompiled->_stream : NULL;
    }
+
+JITServer::ServerStreamRaw *
+TR::CompilationInfoPerThread::getStreamRaw()
+   {
+   return (_methodBeingCompiled) ? _methodBeingCompiled->_streamRaw : NULL;
+   }
 #endif /* defined(JITSERVER_SUPPORT) */
 
 void
@@ -4040,6 +4046,7 @@ TR::CompilationInfoPerThread::processEntries()
    if (compInfo->getPersistentInfo()->getRemoteCompilationMode() == JITServer::CLIENT && !enableJITServerPerCompConn)
       {
       JITServer::ClientStream *client = getClientStream();
+      JITServer::ClientStreamRaw *clientRaw = getClientStreamRaw();
       if (client)
          {
          // Inform the server that client is closing the connection with a connectionTerminate message
@@ -4057,8 +4064,11 @@ TR::CompilationInfoPerThread::processEntries()
             }
 
          client->~ClientStream();
+         clientRaw->~ClientStreamRaw();
          TR_Memory::jitPersistentFree(client);
+         TR_Memory::jitPersistentFree(clientRaw);
          setClientStream(NULL);
+         setClientStreamRaw(NULL);
          }
       }
    }
@@ -12764,7 +12774,7 @@ TR::CompilationInfoPerThread::updateLastLocalGCCounter()
 // entry is queued we do not know any details about the compilation request.
 // The method needs to be executed with compilation monitor in hand.
 TR_MethodToBeCompiled *
-TR::CompilationInfo::addOutOfProcessMethodToBeCompiled(JITServer::ServerStream *stream)
+TR::CompilationInfo::addOutOfProcessMethodToBeCompiled(JITServer::ServerStream *stream, JITServer::ServerStreamRaw *streamRaw)
    {
    TR_MethodToBeCompiled *entry = getCompilationQueueEntry(); // Allocate a new entry
    if (entry)
@@ -12774,6 +12784,7 @@ TR::CompilationInfo::addOutOfProcessMethodToBeCompiled(JITServer::ServerStream *
       entry->initialize(details, NULL, CP_SYNC_NORMAL, NULL);
       entry->_entryTime = getPersistentInfo()->getElapsedTime(); // Cheaper version
       entry->_stream = stream; // Add the stream to the entry
+      entry->_streamRaw = streamRaw;
       incrementMethodQueueSize(); // One more method added to the queue
       _numQueuedFirstTimeCompilations++; // Otherwise an assert triggers when we dequeue
       queueEntry(entry);
@@ -12825,7 +12836,7 @@ TR::CompilationInfo::requeueOutOfProcessEntry(TR_MethodToBeCompiled *entry)
    if (feGetEnv("TR_EnableJITServerPerCompConn"))
       return;
 
-   if (entry->_stream && addOutOfProcessMethodToBeCompiled(entry->_stream))
+   if (entry->_stream && addOutOfProcessMethodToBeCompiled(entry->_stream, entry->_streamRaw))
       {
       // successfully queued the new entry, so notify a thread
       getCompilationMonitor()->notifyAll();

@@ -27,7 +27,7 @@
 
 // Routine called when a new connection request has been received at the server
 // Executed by the listener thread
-void J9CompileDispatcher::compile(JITServer::ServerStream *stream)
+void J9CompileDispatcher::compile(JITServer::ServerStream *stream, JITServer::ServerStreamRaw *streamRaw)
    {
    TR::CompilationInfo * compInfo = getCompilationInfo(_jitConfig);
 
@@ -37,7 +37,7 @@ void J9CompileDispatcher::compile(JITServer::ServerStream *stream)
       {
       // Grab the compilation monitor to queue this entry and notify a compilation thread
       OMR::CriticalSection compilationMonitorLock(compInfo->getCompilationMonitor());
-      if (compInfo->addOutOfProcessMethodToBeCompiled(stream))
+      if (compInfo->addOutOfProcessMethodToBeCompiled(stream, streamRaw))
          {
          // successfully queued the new entry, so notify a thread
          compInfo->getCompilationMonitor()->notifyAll();

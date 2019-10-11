@@ -25,9 +25,13 @@
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include "net/ProtobufTypeConvert.hpp"
+#include "net/RawTypeConvert.hpp"
 #include "net/CommunicationStream.hpp"
+#include "net/CommunicationStreamRaw.hpp"
 #include "env/VerboseLog.hpp"
 #include "control/Options.hpp"
+
+#include <unistd.h>
 
 #if defined(JITSERVER_ENABLE_SSL)
 #include <openssl/ssl.h>
@@ -38,6 +42,42 @@ class SSLInputStream;
 namespace JITServer
 {
 class BaseCompileDispatcher;
+
+class ServerStreamRaw : public CommunicationStreamRaw
+   {
+public:
+   ServerStreamRaw(int connfd) : CommunicationStreamRaw(connfd)
+   {}
+   void writeTempBufferRaw(J9Class *declaringClass1, J9Class *declaringClass2, UDATA field1, UDATA field2)
+      {
+      // serialize args into a contiguous buffer of bytes
+      TempBuffer buffer = {declaringClass1, declaringClass2, field1, field2};
+      writeBlocking(buffer);
+      }
+
+   TempBuffer readTempBufferRaw()
+      {
+      TempBuffer buffer;
+      readBlocking(buffer);
+      return buffer;
+      }
+
+   void writeTempBuffer2Raw(TR_ResolvedJ9Method *rm1, TR_ResolvedJ9Method *rm2, int32_t cpIndex1, int32_t cpIndex2, bool isStatic)
+      {
+      int msgClass = 1;
+      write(getConnFD(), &msgClass, sizeof(int));
+      TempBuffer2 buffer = {rm1, rm2, cpIndex1, cpIndex2, isStatic};
+      writeBlocking(buffer);
+      }
+   
+   TempBuffer2 readTempBuffer2Raw()
+      {
+      TempBuffer2 buffer;
+      readBlocking(buffer);
+      return buffer;
+      }
+
+   };
 
 /**
    @class ServerStream
@@ -92,6 +132,9 @@ public:
    template <typename ...T>
    void write(MessageType type, T... args)
       {
+      // write 0
+      int msgClass = 0;
+      ::write(_connfd, &msgClass, sizeof(int));
       setArgs<T...>(_sMsg.mutable_data(), args...);
       _sMsg.set_type(type);
       writeBlocking(_sMsg);
@@ -272,7 +315,7 @@ private:
 class BaseCompileDispatcher
    {
 public:
-   virtual void compile(ServerStream *stream) = 0;
+   virtual void compile(ServerStream *stream, ServerStreamRaw *streamRaw) = 0;
    };
 
 }

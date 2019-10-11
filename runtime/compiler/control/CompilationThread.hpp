@@ -70,7 +70,7 @@ class TR_ResolvedMethod;
 class TR_RelocationRuntime;
 #if defined(JITSERVER_SUPPORT)
 class ClientSessionData;
-namespace JITServer { class ClientStream; }
+namespace JITServer { class ClientStream; class ClientStreamRaw; class ServerStreamRaw;}
 #endif /* defined(JITSERVER_SUPPORT) */
 
 enum CompilationThreadState
@@ -251,6 +251,8 @@ class CompilationInfoPerThreadBase
 
    void                     setClientStream(JITServer::ClientStream *stream) { _clientStream = stream; }
    JITServer::ClientStream *getClientStream() const { return _clientStream; }
+   void                     setClientStreamRaw(JITServer::ClientStreamRaw *stream) { _clientStreamRaw = stream; }
+   JITServer::ClientStreamRaw *getClientStreamRaw() const { return _clientStreamRaw; }
 #endif /* defined(JITSERVER_SUPPORT) */
 
    protected:
@@ -284,6 +286,7 @@ class CompilationInfoPerThreadBase
 #if defined(JITSERVER_SUPPORT)
    ClientSessionData * _cachedClientDataPtr;
    JITServer::ClientStream * _clientStream;
+   JITServer::ClientStreamRaw *_clientStreamRaw;
 #endif /* defined(JITSERVER_SUPPORT) */
 
 private:
@@ -384,6 +387,7 @@ class CompilationInfoPerThread : public TR::CompilationInfoPerThreadBase
    TR_J9SharedCacheServerVM *getSharedCacheServerVM() const { return _sharedCacheServerVM; }
    void                      setSharedCacheServerVM(TR_J9SharedCacheServerVM *vm) { _sharedCacheServerVM = vm; }
    JITServer::ServerStream  *getStream();
+   JITServer::ServerStreamRaw *getStreamRaw();
    J9ROMClass               *getAndCacheRemoteROMClass(J9Class *, TR_Memory *trMemory=NULL);
    J9ROMClass               *getRemoteROMClassIfCached(J9Class *);
    PersistentUnorderedSet<TR_OpaqueClassBlock*> *getClassesThatShouldNotBeNewlyExtended() const { return _classesThatShouldNotBeNewlyExtended; }
