@@ -42,7 +42,7 @@
 namespace TR { class CompilationInfoPerThreadBase; }
 class TR_OptimizationPlan;
 #if defined(JITSERVER_SUPPORT)
-namespace JITServer { class ServerStream; class ServerStreamRaw; }
+namespace JITServer { class ServerStream; }
 #endif /* defined(JITSERVER_SUPPORT) */
 namespace TR { class Monitor; }
 struct J9JITConfig;
@@ -132,7 +132,6 @@ struct TR_MethodToBeCompiled
 #if defined(JITSERVER_SUPPORT)
    bool                   _remoteCompReq; // Comp request should be sent remotely to JITServer
    JITServer::ServerStream  *_stream; // A non-NULL field denotes an out-of-process compilation request
-   JITServer::ServerStreamRaw *_streamRaw;
    char                  *_clientOptions;
    size_t                 _clientOptionsSize;
    TR_Hotness             _origOptLevel; //  Cache original optLevel when transforming a remote sync compilation to a local cheap one
