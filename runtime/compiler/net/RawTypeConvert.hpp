@@ -7,6 +7,7 @@
 #include <type_traits>
 #include "StreamExceptions.hpp"
 #include "omrcomp.h"
+#include "net/Message.hpp"
 
 class J9Class;
 class TR_ResolvedJ9Method;
@@ -38,45 +39,122 @@ namespace JITServer
    //   - for tuples will need to create a tuple filled with received values
    // 5. Create a tuple of all deserialized data points and return it.
    //
-   class JITServerMessage
+   // enum MessageType {
+      // compilationCode = 0,
+      // compilationFailure = 1
+   // };
+
+
+
+   template <typename T, typename = void> struct RawTypeConvert { };
+   // For primitive values, just return pointer to them, since they can be written/read directly
+   // template <typename T> struct RawTypeConvert<T, typename std::enable_if<std::is_fundamental<T>::value>::type>
+      // {
+      // static inline T onRecv(const Message::DataPoint *dataPoint) { return (T) dataPoint->data; }
+      // static inline Message::DataPoint onSend(const T &value)
+         // {
+         // Message::DataPoint dPoint = { Message:typeName(value), sizeof(T), &value};
+         // return dPoint;
+         // }
+      // };
+   template <> struct RawTypeConvert<const std::string>
       {
-      enum DataType
+      static inline std::string& onRecv(const Message::DataPoint *dataPoint)
          {
-         INT32,
-         INT64
-         UINT32,
-         UINT64,
-         BOOL,
-         STRING,
-         OBJECT, // only trivially-copyable
-         VECTOR,
-         TUPLE
-         };
-private:
-      uint16_t _messageType;
-      uint32_t _messageSize;
-      
+         return *reinterpret_cast<std::string *>(dataPoint->data);
+         }
       };
 
-   template <typename... Args>
-   std::tuple<Args...> getArgs(const JITServerMessage *message);
-   template <typename... Args>
-   void setArgs(JITServerMessage *message, Args... args);
+   // For trivially copyable classes
+   template <typename T> struct RawTypeConvert<T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type>
+      {
+      static inline T onRecv(const Message::DataPoint *dataPoint) { return (T) dataPoint->data; }
+      static inline Message::DataPoint onSend(const T &value)
+         {
+         Message::DataPoint dPoint = { Message::DataType::OBJECT, sizeof(T), &value };
+         return dPoint;
+         }
+      };
 
-   struct TempBuffer
+   // For vectors
+   template <typename T> struct RawTypeConvert<T, typename std::enable_if<std::is_same<T, std::vector<typename T::value_type>>::value>::type>
       {
-      J9Class *_declaringClass1;
-      J9Class *_declaringClass2;
-      UDATA _field1;
-      UDATA _field2;
+      static inline T onRecv(const Message::DataPoint *dataPoint)
+         {
+         auto arrayStart = reinterpret_cast<typename T::value_type *>(dataPoint->data); 
+         std::vector<typename T::value_type> out(arrayStart, arrayStart + dataPoint->metaData.size / sizeof(T::value_type));
+         return out;
+         }
+      static inline void *onSend(const T &value)
+         {
+         Message::DataPoint dPoint = { Message::DataType::VECTOR, sizeof(T) * value.size(), NULL };
+         if (value.size() > 0)
+            {
+            // call onSend for every value of the vector and put the result in an array;
+            // Or maybe not. If we send only trivially copyable values in the vector, we should be fine.
+            dPoint.data = &value[0];
+            return dPoint;
+            }
+         return NULL;
+         }
       };
-   struct TempBuffer2
+   // For tuples
+   //
+
+   // setArgs fills out a message with values from a variadic argument list.
+   // calls RawTypeConvert::onSend for each argument.
+   template <typename Arg1, typename... Args>
+   struct SetArgsRaw
       {
-      TR_ResolvedJ9Method *_resolvedMethod1;
-      TR_ResolvedJ9Method *_resolvedMethod2;
-      int32_t _cpIndex1;
-      int32_t _cpIndex2;
-      bool _isStatic;
+      static void setArgs(Message &message, Arg1 arg1, Args... args)
+         {
+         SetArgsRaw<Arg1>::setArgs(message, arg1);
+         SetArgsRaw<Args...>::setArgs(message, args...);
+         }
       };
+   template <typename Arg1>
+   struct SetArgsRaw<Arg1>
+      {
+      static void setArgs(Message &message, Arg1 arg1)
+         {
+         Message::DataPoint dPoint = RawTypeConvert<Arg1>::onSend(arg1);
+         message.addDataPoint(dPoint);
+         }
+      };
+   template <typename... Args>
+   void setArgsRaw(Message &message, Args... args)
+      {
+      message.clear();
+      SetArgsRaw<Args...>::setArgs(message, args...);
+      }
+
+   // getArgs returns a tuple of values which are extracted from a protobuf AnyData message.
+   // It calls ProtobufTypeConvert::onRecv for each value extracted.
+   template <typename Arg1, typename... Args>
+   struct GetArgsRaw
+      {
+      static std::tuple<Arg1, Args...> getArgs(const Message &message, size_t n)
+         {
+         return std::tuple_cat(GetArgsRaw<Arg1>::getArgs(message, n), GetArgsRaw<Args...>::getArgs(message, n + 1));
+         }
+      };
+   template <typename Arg>
+   struct GetArgsRaw<Arg>
+      {
+      static std::tuple<Arg> getArgs(const Message &message, size_t n)
+         {
+         auto data = message.getDataPoint(n);
+         // if (data.type_case() != AnyPrimitive<typename ProtobufTypeConvert<Arg>::ProtoType>::typeCase())
+            // throw StreamTypeMismatch("Received type " + std::to_string(data.type_case()) + " but expect type " + std::to_string(AnyPrimitive<typename ProtobufTypeConvert<Arg>::ProtoType>::typeCase()));
+         return std::make_tuple(RawTypeConvert<Arg>::onRecv(&data));
+         }
+      };
+   template <typename... Args>
+   std::tuple<Args...> getArgsRaw(const Message &message)
+      {
+      if (sizeof...(Args) != message.getMetaData().numDataPoints)
+         throw StreamArityMismatch("Received " + std::to_string(message.getMetaData().numDataPoints) + " args to unpack but expect " + std::to_string(sizeof...(Args)) + "-tuple");
+      return GetArgsRaw<Args...>::getArgs(message, 0);
+      }
    };
 #endif

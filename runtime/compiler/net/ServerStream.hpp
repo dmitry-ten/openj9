@@ -43,42 +43,6 @@ namespace JITServer
 {
 class BaseCompileDispatcher;
 
-class ServerStreamRaw : public CommunicationStreamRaw
-   {
-public:
-   ServerStreamRaw(int connfd) : CommunicationStreamRaw(connfd)
-   {}
-   void writeTempBufferRaw(J9Class *declaringClass1, J9Class *declaringClass2, UDATA field1, UDATA field2)
-      {
-      // serialize args into a contiguous buffer of bytes
-      TempBuffer buffer = {declaringClass1, declaringClass2, field1, field2};
-      writeBlocking(buffer);
-      }
-
-   TempBuffer readTempBufferRaw()
-      {
-      TempBuffer buffer;
-      readBlocking(buffer);
-      return buffer;
-      }
-
-   void writeTempBuffer2Raw(TR_ResolvedJ9Method *rm1, TR_ResolvedJ9Method *rm2, int32_t cpIndex1, int32_t cpIndex2, bool isStatic)
-      {
-      int msgClass = 1;
-      write(getConnFD(), &msgClass, sizeof(int));
-      TempBuffer2 buffer = {rm1, rm2, cpIndex1, cpIndex2, isStatic};
-      writeBlocking(buffer);
-      }
-   
-   TempBuffer2 readTempBuffer2Raw()
-      {
-      TempBuffer2 buffer;
-      readBlocking(buffer);
-      return buffer;
-      }
-
-   };
-
 /**
    @class ServerStream
    @brief Implementation of the communication API for a server receiving JIT compilations requests
@@ -103,7 +67,7 @@ public:
    7) When compilation is completed successfully, the server responds with finishCompilation(T... args).
       When compilation is aborted, the sever responds with writeError(uint32_t statusCode).
  */
-class ServerStream : public CommunicationStream
+class ServerStream : public CommunicationStreamRaw
    {
 public:
    /**
@@ -113,11 +77,14 @@ public:
       @param ssl  BIO for the SSL enabled stream
       @param timeout timeout value (ms) to be set for connfd
    */
-#if defined(JITSERVER_ENABLE_SSL)
-   explicit ServerStream(int connfd, BIO *ssl);
-#else
-   explicit ServerStream(int connfd);
-#endif
+// #if defined(JITSERVER_ENABLE_SSL)
+   // explicit ServerStream(int connfd, BIO *ssl);
+// #else
+   // explicit ServerStream(int connfd);
+// #endif
+   ServerStream(int connfd) :
+      CommunicationStreamRaw(connfd)
+      {}
    virtual ~ServerStream()
       {
       _numConnectionsClosed++;
@@ -129,15 +96,12 @@ public:
       @param [in] type Message type to be sent
       @param [in] args Variable number of additional paramaters to be sent
    */
-   template <typename ...T>
-   void write(MessageType type, T... args)
+   template <typename ...Args>
+   void write(MessageType type, Args... args)
       {
-      // write 0
-      int msgClass = 0;
-      ::write(_connfd, &msgClass, sizeof(int));
-      setArgs<T...>(_sMsg.mutable_data(), args...);
-      _sMsg.set_type(type);
-      writeBlocking(_sMsg);
+      _sMsg.setType(type);
+      setArgsRaw<Args>(_sMsg, args);
+      writeMessage(_sMsg);
       }
 
    /**
@@ -155,7 +119,7 @@ public:
    template <typename ...T>
    std::tuple<T...> read()
       {
-      readBlocking(_cMsg);
+      readMessage(_cMsg);
       switch (_cMsg.type())
          {
          case MessageType::compilationInterrupted:
@@ -173,7 +137,7 @@ public:
                throw StreamMessageTypeMismatch(_sMsg.type(), _cMsg.type());
             }
          }
-      return getArgs<T...>(_cMsg.mutable_data());
+      return getArgsRaw<T...>(_cMsg);
       }
 
    /**
@@ -193,7 +157,7 @@ public:
    template <typename... T>
    std::tuple<T...> readCompileRequest()
       {
-      readBlocking(_cMsg);
+      readMessage(_cMsg);
       if (_cMsg.version() != 0 && _cMsg.version() != getJITServerVersion())
          {
          throw StreamVersionIncompatible(getJITServerVersion(), _cMsg.version());
@@ -212,7 +176,7 @@ public:
             }
          case MessageType::compilationRequest:
             {
-            return getArgs<T...>(_cMsg.mutable_data());
+            return getArgsRaw<T...>(_cMsg);
             }
          default:
             {
@@ -227,7 +191,7 @@ public:
    template <typename... T>
    std::tuple<T...> getRecvData()
       {
-      return getArgs<T...>(_cMsg.mutable_data());
+      return getArgsRaw<T...>(_cMsg);
       }
 
    /**
@@ -315,7 +279,7 @@ private:
 class BaseCompileDispatcher
    {
 public:
-   virtual void compile(ServerStream *stream, ServerStreamRaw *streamRaw) = 0;
+   virtual void compile(ServerStream *stream) = 0;
    };
 
 }
