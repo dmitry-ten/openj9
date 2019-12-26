@@ -77,14 +77,14 @@ public:
       @param ssl  BIO for the SSL enabled stream
       @param timeout timeout value (ms) to be set for connfd
    */
-// #if defined(JITSERVER_ENABLE_SSL)
-   // explicit ServerStream(int connfd, BIO *ssl);
-// #else
-   // explicit ServerStream(int connfd);
-// #endif
-   ServerStream(int connfd) :
-      CommunicationStreamRaw(connfd)
-      {}
+#if defined(JITSERVER_ENABLE_SSL)
+   explicit ServerStream(int connfd, BIO *ssl);
+#else
+   explicit ServerStream(int connfd);
+#endif
+   // ServerStream(int connfd) :
+      // CommunicationStreamRaw(connfd)
+      // {}
    virtual ~ServerStream()
       {
       _numConnectionsClosed++;
@@ -100,7 +100,7 @@ public:
    void write(MessageType type, Args... args)
       {
       _sMsg.setType(type);
-      setArgsRaw<Args>(_sMsg, args);
+      setArgsRaw<Args...>(_sMsg, args);
       writeMessage(_sMsg);
       }
 

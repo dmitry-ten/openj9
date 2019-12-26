@@ -32,6 +32,12 @@ public:
 
    struct DataPoint
       {
+      DataPoint(DataType type, uint32_t size, void *data),
+         data(data)
+         {
+         metaData.type = type;
+         metaData.size = size;
+         }
       struct MetaData
          {
          DataType type;

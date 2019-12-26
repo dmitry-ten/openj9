@@ -47,16 +47,14 @@ int ServerStream::_numConnectionsClosed = 0;
 
 #if defined(JITSERVER_ENABLE_SSL)
 ServerStream::ServerStream(int connfd, BIO *ssl)
-   : CommunicationStream()
+   : CommunicationStreamRaw(connfd)
    {
-   initStream(connfd, ssl);
    _numConnectionsOpened++;
    }
 #else // JITSERVER_ENABLE_SSL
 ServerStream::ServerStream(int connfd)
-   : CommunicationStream()
+   : CommunicationStreamRaw(connfd)
    {
-   initStream(connfd);
    _numConnectionsOpened++;
    }
 #endif

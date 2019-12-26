@@ -40,12 +40,12 @@ class SSLInputStream;
 namespace JITServer
 {
 
-class ClientStreamRaw : public CommunicationStreamRaw
-   {
-public:
-   explicit ClientStreamRaw(int connfd);
+// class ClientStreamRaw : public CommunicationStreamRaw
+   // {
+// public:
+   // explicit ClientStreamRaw(int connfd);
 
-   };
+   // };
 
 enum VersionCheckStatus
    {
@@ -69,7 +69,7 @@ enum VersionCheckStatus
           auto recv = client->getRecvData<uint32_t, std::string, std::string, .......>();
    (5) install compiled code into code cache
 */
-class ClientStream : public CommunicationStream
+class ClientStream : public CommunicationStreamRaw
    {
 public:
    /**
@@ -120,8 +120,8 @@ public:
    template <typename ...T>
    void write(MessageType type, T... args)
       {
-      _cMsg.set_type(type);
-      setArgs<T...>(_cMsg.mutable_data(), args...);
+      _cMsg.setType(type);
+      setArgsRaw<T...>(_cMsg, args...);
 
       writeBlocking(_cMsg);
       }
@@ -145,7 +145,7 @@ public:
    template <typename ...T>
    std::tuple<T...> getRecvData()
       {
-      return getArgs<T...>(_sMsg.mutable_data());
+      return getArgsRaw<T...>(_sMsg);
       }
 
    /**
