@@ -47,28 +47,48 @@ namespace JITServer
 
 
    template <typename T, typename = void> struct RawTypeConvert { };
-   // For primitive values, just return pointer to them, since they can be written/read directly
-   // template <typename T> struct RawTypeConvert<T, typename std::enable_if<std::is_fundamental<T>::value>::type>
-      // {
-      // static inline T onRecv(const Message::DataPoint *dataPoint) { return (T) dataPoint->data; }
-      // static inline Message::DataPoint onSend(const T &value)
-         // {
-         // Message::DataPoint dPoint = { Message:typeName(value), sizeof(T), &value};
-         // return dPoint;
-         // }
-      // };
+   template <> struct RawTypeConvert<uint32_t>
+      {
+      static inline uint32_t onRecv(const Message::DataPoint *dPoint) { return *reinterpret_cast<uint32_t *>(dPoint->data); }
+      static inline Message::DataPoint onSend(const uint32_t &val) { return {Message:DataType::UINT32, sizeof(uint32_t), &val}; }
+      };
+   template <> struct RawTypeConvert<uint64_t>
+      {
+      static inline uint64_t onRecv(const Message::DataPoint *dPoint) { return *reinterpret_cast<uint64_t *>(dPoint->data); }
+      static inline Message::DataPoint onSend(const uint64_t val) { return {Message::DataType::UINT64, sizeof(uint64_t), &val}; }
+      };
+   template <> struct RawTypeConvert<int32_t>
+      {
+      static inline int32_t onRecv(const Message::DataPoint *dPoint) { return *reinterpret_cast<int32_t *>(dPoint->data); }
+      static inline Message::DataPoint onSend(const int32_t val) { return {Message::DataType::INT32, sizeof(int32_t), &val}; }
+      };
+   template <> struct RawTypeConvert<int64_t>
+      {
+      static inline int64_t onRecv(const Message::DataPoint *dPoint) { return *reinterpret_cast<int64_t *>(dPoint->data); }
+      static inline Message::DataPoint onSend(const int64_t val) { return {Message::DataType::INT64, sizeof(int64_t), &val}; }
+      };
+   template <> struct RawTypeConvert<bool>
+      {
+      static inline bool onRecv(const Message::DataPoint *dPoint) { return *reinterpret_cast<bool *>(dPoint->data); }
+      static inline Message::DataPoint onSend(const bool val) { return {Message::DataType::BOOL, sizeof(bool), &val}; }
+      };
    template <> struct RawTypeConvert<const std::string>
       {
       static inline std::string& onRecv(const Message::DataPoint *dataPoint)
          {
          return *reinterpret_cast<std::string *>(dataPoint->data);
          }
+      static inline Message::DataPoint onSend(const std::string &value)
+         {
+         MessageDataPoint dPoint = { Message::DataType::STRING, value.length(), &value[0] };
+         return dPoint;
+         }
       };
 
    // For trivially copyable classes
    template <typename T> struct RawTypeConvert<T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type>
       {
-      static inline T onRecv(const Message::DataPoint *dataPoint) { return (T) dataPoint->data; }
+      static inline T onRecv(const Message::DataPoint *dataPoint) { return reinterpret_cast<T>(dataPoint->data); }
       static inline Message::DataPoint onSend(const T &value)
          {
          Message::DataPoint dPoint = { Message::DataType::OBJECT, sizeof(T), &value };
