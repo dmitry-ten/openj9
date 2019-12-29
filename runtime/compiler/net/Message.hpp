@@ -2,6 +2,8 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
+#include <stdlib.h>
+
 namespace JITServer
 {
 
@@ -16,33 +18,58 @@ public:
       UINT64,
       BOOL,
       STRING,
-      OBJECT, // only trivially-copyable
+      OBJECT, // only trivially-copyable,
+      ENUM,
       VECTOR,
       TUPLE
       };
 
-   // These structs are needed because they are contiguous
-   // and can be sent/read directly from the socket. This
-   // allows us to serialize the message without extra copying.
+   // Struct containing message metadata,
+   // i.e. number of data points and message type.
+   // This is a struct instead of just being members of
+   // Message class because we write/read metadata separately
+   // from the message data, so having this struct is convenient.
    struct MessageMetaData
       {
       uint16_t numDataPoints; // number of data points in a message
       MessageType type;
       };
 
+   // Struct describing a single data point in a message.
+   // Contains metadata describing data type and size
+   // and a pointer to the beginning of the data.
+   // data pointer 
    struct DataPoint
       {
-      DataPoint(DataType type, uint32_t size, void *data),
-         data(data)
-         {
-         metaData.type = type;
-         metaData.size = size;
-         }
       struct MetaData
          {
          DataType type;
          uint32_t size;
          };
+
+      DataPoint(MetaData metaData, const void *data) :
+         metaData(metaData),
+         data((void *) data)
+         {}
+
+      DataPoint(DataType type, uint32_t size, const void *data) :
+         data((void  *) data)
+         {
+         metaData.type = type;
+         metaData.size = size;
+         }
+
+      DataPoint(MetaData metaData) :
+         metaData(metaData)
+         {
+         allocateStorage();
+         }
+
+      bool isContiguous() const { return metaData.type != VECTOR && metaData.type != TUPLE; }
+
+      void allocateStorage() { data = metaData.size > 0  && !data ? malloc(metaData.size) : NULL; }
+      void freeStorage() { free(data); data = NULL; }
+
       MetaData metaData;
       void *data;
       };
@@ -56,6 +83,7 @@ public:
 
    void addDataPoint(const DataPoint &dataPoint)
       {
+      _metaData.numDataPoints++;
       _dataPoints.push_back(dataPoint);
       }
 
@@ -68,6 +96,8 @@ public:
    void clear()
       {
       _metaData.numDataPoints = 0;
+      for (auto it = _dataPoints.begin(); it != _dataPoints.end(); ++it)
+         (*it).freeStorage();
       _dataPoints.clear();
       }
 
@@ -83,6 +113,7 @@ class ServerMessage : public Message
 
 class ClientMessage : public Message
    {
+public:
    uint64_t version() { return _version; }
    void setVersion(uint64_t version) { _version = version; }
    void clearVersion() { _version = 0; }

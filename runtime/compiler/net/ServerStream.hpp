@@ -100,7 +100,7 @@ public:
    void write(MessageType type, Args... args)
       {
       _sMsg.setType(type);
-      setArgsRaw<Args...>(_sMsg, args);
+      setArgsRaw<Args...>(_sMsg, args...);
       writeMessage(_sMsg);
       }
 
