@@ -160,7 +160,7 @@ public:
       {
       _cMsg.setType(type);
       if (type == MessageType::compilationInterrupted || type == MessageType::connectionTerminate)
-         _cMsg.clear();
+         _cMsg.clear(false);
       else
          setArgsRaw<T...>(_cMsg, args...);
       writeMessage(_cMsg);

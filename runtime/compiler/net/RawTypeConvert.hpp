@@ -51,7 +51,7 @@ namespace JITServer
    template <> struct RawTypeConvert<uint64_t>
       {
       static inline uint64_t onRecv(const Message::DataPoint *dPoint) { return *static_cast<uint64_t *>(dPoint->data); }
-      static inline Message::DataPoint onSend(const uint64_t val)
+      static inline Message::DataPoint onSend(const uint64_t &val)
          {
          return Message::DataPoint(Message::DataType::UINT64, sizeof(uint64_t), &val);
          }
@@ -59,7 +59,7 @@ namespace JITServer
    template <> struct RawTypeConvert<int32_t>
       {
       static inline int32_t onRecv(const Message::DataPoint *dPoint) { return *static_cast<int32_t *>(dPoint->data); }
-      static inline Message::DataPoint onSend(const int32_t val)
+      static inline Message::DataPoint onSend(const int32_t &val)
          {
          return Message::DataPoint(Message::DataType::INT32, sizeof(int32_t), &val);
          }
@@ -67,7 +67,7 @@ namespace JITServer
    template <> struct RawTypeConvert<int64_t>
       {
       static inline int64_t onRecv(const Message::DataPoint *dPoint) { return *static_cast<int64_t *>(dPoint->data); }
-      static inline Message::DataPoint onSend(const int64_t val)
+      static inline Message::DataPoint onSend(const int64_t &val)
          {
          return Message::DataPoint(Message::DataType::INT64, sizeof(int64_t), &val);
          }
@@ -75,7 +75,7 @@ namespace JITServer
    template <> struct RawTypeConvert<bool>
       {
       static inline bool onRecv(const Message::DataPoint *dPoint) { return *static_cast<bool *>(dPoint->data); }
-      static inline Message::DataPoint onSend(const bool val)
+      static inline Message::DataPoint onSend(const bool &val)
          {
          return Message::DataPoint(Message::DataType::BOOL, sizeof(bool), &val);
          }
@@ -104,16 +104,6 @@ namespace JITServer
          }
       };
 
-   // For enums
-   // template <typename T> struct RawTypeConvert<T, typename std::enable_if<std::is_enum<T>::value>::type>
-      // {
-      // static inline T onRecv(const Message::DataPoint *dataPoint) { return *static_cast<T *>(dataPoint->data); }
-      // static inline Message::DataPoint onSend(const T &value)
-         // {
-         // return Message::DataPoint(Message::DataType::ENUM, sizeof(T), &value);
-         // }
-      // };
-
    // For vectors
    template <typename T> struct RawTypeConvert<T, typename std::enable_if<std::is_same<T, std::vector<typename T::value_type>>::value>::type>
       {
@@ -133,10 +123,11 @@ namespace JITServer
          }
       static inline Message::DataPoint onSend(const T &value)
          {
-         Message::DataPoint dPoint = { Message::DataType::VECTOR, 0, NULL };
+         uint32_t dataSize = sizeof(uint32_t) + value.size() * sizeof(Message::DataPoint);
+         Message::DataPoint dPoint = { Message::DataType::VECTOR, dataSize, NULL };
          // Serialize each element in a vector as its own datapoint
          // call onSend for every value of the vector and put the result in a dynamically allocated buffer
-         void *storage = malloc(sizeof(uint32_t) + value.size() * sizeof(Message::DataPoint));
+         void *storage = malloc(dataSize);
          *static_cast<uint32_t *>(storage) = value.size();
          auto dPoints = reinterpret_cast<Message::DataPoint *>(static_cast<uint32_t *>(storage) + 1);
          for (int32_t i = 0; i < value.size(); ++i)
@@ -162,7 +153,7 @@ namespace JITServer
          return std::tuple_cat(TupleTypeConvert<n, Arg1>::onRecvImpl(startPtr),
                                TupleTypeConvert<n + 1, Args...>::onRecvImpl(static_cast<void *>(static_cast<Message::DataPoint *>(startPtr) + 1)));
          }
-      static inline void onSendImpl(void *startPtr, Arg1 arg1, Args... args)
+      static inline void onSendImpl(void *startPtr, const Arg1 &arg1, const Args&... args)
          {
          TupleTypeConvert<n, Arg1>::onSendImpl(startPtr, arg1);
          TupleTypeConvert<n + 1, Args...>::onSendImpl(static_cast<void *>(static_cast<Message::DataPoint *>(startPtr) + 1), args...);
@@ -177,7 +168,7 @@ namespace JITServer
          Message::DataPoint *dPoint = reinterpret_cast<Message::DataPoint *>(startPtr);
          return std::make_tuple(RawTypeConvert<Arg1>::onRecv(dPoint));
          }
-      static inline void onSendImpl(void *startPtr, Arg1 arg1)
+      static inline void onSendImpl(void *startPtr, const Arg1 &arg1)
          {
          *static_cast<Message::DataPoint *>(startPtr) = RawTypeConvert<Arg1>::onSend(arg1);
          }
@@ -193,9 +184,10 @@ namespace JITServer
       template <typename Tuple, size_t... Idx>
       static inline Message::DataPoint onSendImpl(const Tuple &val, index_tuple_raw<Idx...>)
          {
-         Message::DataPoint dPoint = { Message::DataType::TUPLE, 0, NULL };
          size_t tupleSize = std::tuple_size<typename std::decay<decltype(val)>::type>::value;
-         void *storage = malloc(sizeof(uint32_t) + tupleSize * sizeof(Message::DataPoint));
+         uint32_t dataSize = sizeof(uint32_t) + tupleSize * sizeof(Message::DataPoint);
+         Message::DataPoint dPoint = { Message::DataType::TUPLE, dataSize, NULL };
+         void *storage = malloc(dataSize);
          *static_cast<uint32_t *>(storage) = tupleSize;
          TupleTypeConvert<0, T...>::onSendImpl(static_cast<void *>(static_cast<uint32_t *>(storage) + 1), std::get<Idx>(val)...);
          dPoint.data = storage;
@@ -218,7 +210,7 @@ namespace JITServer
    template <typename Arg1, typename... Args>
    struct SetArgsRaw
       {
-      static void setArgs(Message &message, Arg1 arg1, Args... args)
+      static void setArgs(Message &message, Arg1 &arg1, Args&... args)
          {
          SetArgsRaw<Arg1>::setArgs(message, arg1);
          SetArgsRaw<Args...>::setArgs(message, args...);
@@ -227,16 +219,15 @@ namespace JITServer
    template <typename Arg1>
    struct SetArgsRaw<Arg1>
       {
-      static void setArgs(Message &message, Arg1 arg1)
+      static void setArgs(Message &message, Arg1 &arg1)
          {
          Message::DataPoint dPoint = RawTypeConvert<Arg1>::onSend(arg1);
-         message.addDataPoint(dPoint);
+         message.addDataPoint(dPoint, true);
          }
       };
    template <typename... Args>
-   void setArgsRaw(Message &message, Args... args)
+   void setArgsRaw(Message &message, Args&... args)
       {
-      message.clear();
       SetArgsRaw<Args...>::setArgs(message, args...);
       }
 

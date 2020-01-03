@@ -157,7 +157,9 @@ public:
    template <typename... T>
    std::tuple<T...> readCompileRequest()
       {
+      // fprintf(stderr, "readCompileRequest ClientMessage=%p\n", &_cMsg);
       readMessage(_cMsg);
+      // fprintf(stderr, "numArgs=%d\n", _cMsg.getMetaData().numDataPoints);
       if (_cMsg.version() != 0 && _cMsg.version() != getJITServerVersion())
          {
          throw StreamVersionIncompatible(getJITServerVersion(), _cMsg.version());

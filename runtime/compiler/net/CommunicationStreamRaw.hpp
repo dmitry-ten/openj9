@@ -36,6 +36,7 @@ protected:
 
    void readMessage(Message &msg)
       {
+      msg.clear(true);
       // read message meta data,
       // which contains the message type
       // and the number of data points
@@ -43,15 +44,23 @@ protected:
       readBlocking(metaData);
       msg.setMetaData(metaData);
 
+      // char *storage = static_cast<char *>(malloc(msg.getMetaData().totalSize));
+      // ::read(getConnFD(), storage, msg.getMetaData().totalSize);
+      
+      // char *curPtr = storage;
       // read each data point into a Message object
       for (int32_t i = 0; i < metaData.numDataPoints; ++i)
          {
          Message::DataPoint dPoint = readDataPoint();
-         msg.addDataPoint(dPoint);
+         // Message::DataPoint dPoint = *reinterpret_cast<Message::DataPoint *>(curPtr);
+         // dPoint.data = curPtr + sizeof(Message::DataPoint);
+         msg.addDataPoint(dPoint, false);
+         // curPtr += sizeof(Message::DataPoint) + dPoint.metaData.size;
          }
+      fprintf(stderr, "numDataPoints=%d totalSize=%d\n", msg.getMetaData().numDataPoints, msg.getMetaData().totalSize);
       }
 
-   void writeMessage(const Message &msg)
+   void writeMessage(Message &msg)
       {
       // write message metadata
       writeBlocking(msg.getMetaData());
@@ -61,6 +70,7 @@ protected:
          {
          writeDataPoint(msg.getDataPoint(i));
          }
+      msg.clear(false);
       }
 
    int getConnFD() { return _connfd; }
@@ -113,16 +123,35 @@ private:
       // which contains the data point size and type.
       Message::DataPoint::MetaData pMetaData;
       readBlocking(pMetaData);
+      // fprintf(stderr, "readDataPoint type=%d size=%d\n", pMetaData.type, pMetaData.size);
 
       // read the data contained in the datapoint.
       // dynamically allocates storage for the received data
       auto dPoint = Message::DataPoint(pMetaData);
-      ::read(getConnFD(), dPoint.data, pMetaData.size);
+      if (dPoint.isContiguous())
+         {
+         ::read(getConnFD(), dPoint.data, pMetaData.size);
+         }
+      else
+         {
+         // data point is a series of nested data points, thus need to write
+         // data of each data point individually, to avoid copying.
+         // 1. The first thing in data is the number of inner data points
+         uint32_t numInnerPoints;
+         readBlocking(numInnerPoints);
+         *static_cast<uint32_t *>(dPoint.data) = numInnerPoints;
+         Message::DataPoint *dPoints = reinterpret_cast<Message::DataPoint *>(static_cast<uint32_t *>(dPoint.data) + 1);
+         for (uint32_t i = 0; i < numInnerPoints; ++i)
+            {
+            dPoints[i] = readDataPoint();
+            }
+         }
       return dPoint;
       }
 
    void writeDataPoint(const Message::DataPoint &dPoint)
       {
+      // fprintf(stderr, "writeDataPoint type=%d size=%d\n", dPoint.metaData.type, dPoint.metaData.size);
       writeBlocking(dPoint.metaData);
       // write the data described by the datapoint
       if (dPoint.isContiguous())
@@ -136,12 +165,11 @@ private:
          // 1. The first thing in data is the number of inner data points
          uint32_t numInnerPoints = *static_cast<uint32_t *>(dPoint.data);
          writeBlocking(numInnerPoints);
-         Message::DataPoint *firstPoint = reinterpret_cast<Message::DataPoint *>(static_cast<char *>(dPoint.data) + sizeof(uint32_t));
-         for (Message::DataPoint *curPoint = firstPoint; curPoint < firstPoint + numInnerPoints; ++curPoint)
+         Message::DataPoint *dPoints = reinterpret_cast<Message::DataPoint *>(static_cast<uint32_t *>(dPoint.data) + 1);
+         for (uint32_t i = 0; i < numInnerPoints; ++i)
             {
             // 2. write each data point as usual
-            writeDataPoint(*curPoint);
-            curPoint++;
+            writeDataPoint(dPoints[i]);
             }
          }
       }

@@ -31,7 +31,13 @@ public:
    // from the message data, so having this struct is convenient.
    struct MessageMetaData
       {
+      MessageMetaData() :
+         numDataPoints(0),
+         totalSize(0)
+         {}
+
       uint16_t numDataPoints; // number of data points in a message
+      uint32_t totalSize; // total number of data bytes in the message
       MessageType type;
       };
 
@@ -60,30 +66,36 @@ public:
          }
 
       DataPoint(MetaData metaData) :
-         metaData(metaData)
-         {
-         allocateStorage();
-         }
+         metaData(metaData),
+         data(malloc(metaData.size))
+         {}
 
       bool isContiguous() const { return metaData.type != VECTOR && metaData.type != TUPLE; }
 
-      void allocateStorage() { data = metaData.size > 0  && !data ? malloc(metaData.size) : NULL; }
       void freeStorage() { free(data); data = NULL; }
 
       MetaData metaData;
       void *data;
       };
 
-   void setMetaData(const MessageMetaData &metaData)
+   void setMetaData(MessageMetaData metaData)
       {
       _metaData = metaData;
       }
 
    MessageMetaData getMetaData() const { return _metaData; }
 
-   void addDataPoint(const DataPoint &dataPoint)
+   void addDataPoint(const DataPoint &dataPoint, bool isWrite)
       {
-      _metaData.numDataPoints++;
+      // this function needs to increment numDataPoints when called
+      // for writing the message, but not when called for reading.
+      //
+      if (isWrite)
+         {
+         _metaData.numDataPoints++;
+         _metaData.totalSize += sizeof(DataPoint) + dataPoint.metaData.size;
+         }
+
       _dataPoints.push_back(dataPoint);
       }
 
@@ -93,11 +105,15 @@ public:
 
    MessageType type() const { return _metaData.type; }
 
-   void clear()
+   void clear(bool isHeapAlloc)
       {
       _metaData.numDataPoints = 0;
-      for (auto it = _dataPoints.begin(); it != _dataPoints.end(); ++it)
-         (*it).freeStorage();
+      _metaData.totalSize = 0;
+      if (isHeapAlloc)
+         {
+         for (auto it = _dataPoints.begin(); it != _dataPoints.end(); ++it)
+            (*it).freeStorage();
+         }
       _dataPoints.clear();
       }
 
