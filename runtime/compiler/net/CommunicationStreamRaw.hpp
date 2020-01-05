@@ -14,10 +14,13 @@ class CommunicationStreamRaw
 protected:
    CommunicationStreamRaw()
       {
+      _storage = static_cast<char *>(malloc(100000));
+      _curPtr = _storage;
       }
 
    ~CommunicationStreamRaw()
       {
+      // free(_storage);
       close(_connfd);
       }
 
@@ -36,41 +39,29 @@ protected:
 
    void readMessage(Message &msg)
       {
-      msg.clear(true);
+      // if (_storage)
+         // free(storage);
+      msg.clear();
       // read message meta data,
       // which contains the message type
       // and the number of data points
-      Message::MessageMetaData metaData;
-      readBlocking(metaData);
-      msg.setMetaData(metaData);
+      long serializedSize;
+      readBlocking(serializedSize);
+      // _storage = static_cast<char *>(malloc(serializedSize));
+      ::read(getConnFD(), _storage, serializedSize);
 
-      // char *storage = static_cast<char *>(malloc(msg.getMetaData().totalSize));
-      // ::read(getConnFD(), storage, msg.getMetaData().totalSize);
+      deserializeMessage(msg);
       
-      // char *curPtr = storage;
-      // read each data point into a Message object
-      for (int32_t i = 0; i < metaData.numDataPoints; ++i)
-         {
-         Message::DataPoint dPoint = readDataPoint();
-         // Message::DataPoint dPoint = *reinterpret_cast<Message::DataPoint *>(curPtr);
-         // dPoint.data = curPtr + sizeof(Message::DataPoint);
-         msg.addDataPoint(dPoint, false);
-         // curPtr += sizeof(Message::DataPoint) + dPoint.metaData.size;
-         }
-      fprintf(stderr, "numDataPoints=%d totalSize=%d\n", msg.getMetaData().numDataPoints, msg.getMetaData().totalSize);
+      // fprintf(stderr, "numDataPoints=%d serializedSize=%ld\n", msg.getMetaData().numDataPoints, serializedSize);
       }
 
    void writeMessage(Message &msg)
       {
-      // write message metadata
-      writeBlocking(msg.getMetaData());
-
-      // write data points
-      for (int32_t i = 0; i < msg.getMetaData().numDataPoints; ++i)
-         {
-         writeDataPoint(msg.getDataPoint(i));
-         }
-      msg.clear(false);
+      long serializedSize;
+      const char *serialMsg = serializeMessage(msg, serializedSize);
+      writeBlocking(serializedSize);
+      ::write(getConnFD(), serialMsg, serializedSize);
+      msg.clear();
       }
 
    int getConnFD() { return _connfd; }
@@ -92,6 +83,8 @@ protected:
    static uint32_t CONFIGURATION_FLAGS;
 
 private:
+   char *_storage;
+   char *_curPtr;
    // readBlocking and writeBlocking are functions that directly read/write
    // passed object from/to the socket. For the object to be correctly written,
    // it needs to be contiguous.
@@ -117,20 +110,59 @@ private:
          }
       }
 
-   Message::DataPoint readDataPoint()
+   template <typename T>
+   void deserializeValue(T &val)
       {
-      // read the data point metadata,
-      // which contains the data point size and type.
-      Message::DataPoint::MetaData pMetaData;
-      readBlocking(pMetaData);
-      // fprintf(stderr, "readDataPoint type=%d size=%d\n", pMetaData.type, pMetaData.size);
+      memcpy(&val, _curPtr, sizeof(T));
+      _curPtr += sizeof(T);
+      }
 
-      // read the data contained in the datapoint.
-      // dynamically allocates storage for the received data
+   template <typename T>
+   void serializeValue(const T &val)
+      {
+      memcpy(_curPtr, &val, sizeof(T));
+      _curPtr += sizeof(T);
+      }
+
+   const char *serializeMessage(const Message &msg, long &serializedSize)
+      {
+      _curPtr = _storage;
+      memcpy(_curPtr, &msg.getMetaData(), sizeof(Message::MessageMetaData));
+      _curPtr += sizeof(Message::MessageMetaData);
+      for (int32_t i = 0; i < msg.getMetaData().numDataPoints; ++i)
+         {
+         serializeDataPoint(msg.getDataPoint(i));
+         }
+      serializedSize = _curPtr - _storage;
+      _curPtr = _storage;
+      return _storage;
+      }
+
+   void deserializeMessage(Message &msg)
+      {
+      _curPtr = _storage;
+      Message::MessageMetaData *metaData = reinterpret_cast<Message::MessageMetaData *>(_curPtr);
+      msg.setMetaData(*metaData);
+      _curPtr += sizeof(Message::MessageMetaData);
+
+      for (int32_t i = 0; i < msg.getMetaData().numDataPoints; ++i)
+         {
+         msg.addDataPoint(deserializeDataPoint(), false);
+         }
+      _curPtr = _storage;
+      }
+
+   Message::DataPoint deserializeDataPoint()
+      {
+      Message::DataPoint::MetaData pMetaData;
+      deserializeValue(pMetaData);
+      // fprintf(stderr, "deserializeDataPoint type=%d size=%d\n", pMetaData.type, pMetaData.size);
+
       auto dPoint = Message::DataPoint(pMetaData);
       if (dPoint.isContiguous())
          {
-         ::read(getConnFD(), dPoint.data, pMetaData.size);
+         dPoint.data = _curPtr;
+         _curPtr += pMetaData.size;
          }
       else
          {
@@ -138,25 +170,26 @@ private:
          // data of each data point individually, to avoid copying.
          // 1. The first thing in data is the number of inner data points
          uint32_t numInnerPoints;
-         readBlocking(numInnerPoints);
+         deserializeValue(numInnerPoints);
          *static_cast<uint32_t *>(dPoint.data) = numInnerPoints;
          Message::DataPoint *dPoints = reinterpret_cast<Message::DataPoint *>(static_cast<uint32_t *>(dPoint.data) + 1);
          for (uint32_t i = 0; i < numInnerPoints; ++i)
             {
-            dPoints[i] = readDataPoint();
+            dPoints[i] = deserializeDataPoint();
             }
          }
       return dPoint;
       }
 
-   void writeDataPoint(const Message::DataPoint &dPoint)
+   void serializeDataPoint(const Message::DataPoint &dPoint)
       {
-      // fprintf(stderr, "writeDataPoint type=%d size=%d\n", dPoint.metaData.type, dPoint.metaData.size);
-      writeBlocking(dPoint.metaData);
+      // fprintf(stderr, "serializedDataPoint type=%d size=%d\n", dPoint.metaData.type, dPoint.metaData.size);
+      serializeValue(dPoint.metaData);
       // write the data described by the datapoint
       if (dPoint.isContiguous())
          {
-         ::write(getConnFD(), dPoint.data, dPoint.metaData.size);
+         memcpy(_curPtr, dPoint.data, dPoint.metaData.size);
+         _curPtr += dPoint.metaData.size;
          }
       else
          {
@@ -164,12 +197,12 @@ private:
          // data of each data point individually, to avoid copying.
          // 1. The first thing in data is the number of inner data points
          uint32_t numInnerPoints = *static_cast<uint32_t *>(dPoint.data);
-         writeBlocking(numInnerPoints);
+         serializeValue(numInnerPoints);
          Message::DataPoint *dPoints = reinterpret_cast<Message::DataPoint *>(static_cast<uint32_t *>(dPoint.data) + 1);
          for (uint32_t i = 0; i < numInnerPoints; ++i)
             {
             // 2. write each data point as usual
-            writeDataPoint(dPoints[i]);
+            serializeDataPoint(dPoints[i]);
             }
          }
       }

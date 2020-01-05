@@ -37,7 +37,7 @@ public:
          {}
 
       uint16_t numDataPoints; // number of data points in a message
-      uint32_t totalSize; // total number of data bytes in the message
+      long int totalSize; // total number of data bytes in the message
       MessageType type;
       };
 
@@ -83,7 +83,7 @@ public:
       _metaData = metaData;
       }
 
-   MessageMetaData getMetaData() const { return _metaData; }
+   const MessageMetaData &getMetaData() const { return _metaData; }
 
    void addDataPoint(const DataPoint &dataPoint, bool isWrite)
       {
@@ -93,7 +93,7 @@ public:
       if (isWrite)
          {
          _metaData.numDataPoints++;
-         _metaData.totalSize += sizeof(DataPoint) + dataPoint.metaData.size;
+
          }
 
       _dataPoints.push_back(dataPoint);
@@ -105,17 +105,13 @@ public:
 
    MessageType type() const { return _metaData.type; }
 
-   void clear(bool isHeapAlloc)
+   void clear()
       {
       _metaData.numDataPoints = 0;
       _metaData.totalSize = 0;
-      if (isHeapAlloc)
-         {
-         for (auto it = _dataPoints.begin(); it != _dataPoints.end(); ++it)
-            (*it).freeStorage();
-         }
       _dataPoints.clear();
       }
+
 
 private:
    MessageMetaData _metaData;
