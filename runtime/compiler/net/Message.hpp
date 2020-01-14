@@ -39,6 +39,7 @@ public:
       uint16_t numDataPoints; // number of data points in a message
       long int totalSize; // total number of data bytes in the message
       MessageType type;
+      uint64_t version;
       };
 
    // Struct describing a single data point in a message.
@@ -67,12 +68,29 @@ public:
 
       DataPoint(MetaData metaData) :
          metaData(metaData),
-         data(malloc(metaData.size))
+         data(NULL)
          {}
 
       bool isContiguous() const { return metaData.type != VECTOR && metaData.type != TUPLE; }
 
-      void freeStorage() { free(data); data = NULL; }
+      const uint32_t serializedSize() const
+         {
+         if (isContiguous())
+            {
+            return sizeof(MetaData) + metaData.size;
+            }
+         else
+            {
+            uint32_t numInnerPoints = *static_cast<uint32_t *>(data);
+            Message::DataPoint *dPoints = reinterpret_cast<Message::DataPoint *>(static_cast<uint32_t *>(data) + 1);
+            uint32_t totalSize = sizeof(MetaData) + sizeof(uint32_t) + metaData.size;
+            for (uint32_t i = 0; i < numInnerPoints; ++i)
+               {
+               totalSize += dPoints[i].serializedSize();
+               }
+            return totalSize;
+            }
+         }
 
       MetaData metaData;
       void *data;
@@ -113,7 +131,7 @@ public:
       }
 
 
-private:
+protected:
    MessageMetaData _metaData;
    std::vector<DataPoint> _dataPoints;
    };
@@ -126,12 +144,9 @@ class ServerMessage : public Message
 class ClientMessage : public Message
    {
 public:
-   uint64_t version() { return _version; }
-   void setVersion(uint64_t version) { _version = version; }
-   void clearVersion() { _version = 0; }
-
-private:
-   uint64_t _version;   
+   uint64_t version() { return _metaData.version; }
+   void setVersion(uint64_t version) { _metaData.version = version; }
+   void clearVersion() { _metaData.version = 0; }
    };
 };
 #endif

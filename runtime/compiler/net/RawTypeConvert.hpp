@@ -124,7 +124,7 @@ namespace JITServer
       static inline Message::DataPoint onSend(const T &value)
          {
          uint32_t dataSize = sizeof(uint32_t) + value.size() * sizeof(Message::DataPoint);
-         Message::DataPoint dPoint = { Message::DataType::VECTOR, dataSize, NULL };
+         Message::DataPoint dPoint = Message::DataPoint(Message::DataType::VECTOR, dataSize, NULL);
          // Serialize each element in a vector as its own datapoint
          // call onSend for every value of the vector and put the result in a dynamically allocated buffer
          void *storage = malloc(dataSize);
@@ -186,7 +186,7 @@ namespace JITServer
          {
          size_t tupleSize = std::tuple_size<typename std::decay<decltype(val)>::type>::value;
          uint32_t dataSize = sizeof(uint32_t) + tupleSize * sizeof(Message::DataPoint);
-         Message::DataPoint dPoint = { Message::DataType::TUPLE, dataSize, NULL };
+         Message::DataPoint dPoint = Message::DataPoint(Message::DataType::TUPLE, dataSize, NULL);
          void *storage = malloc(dataSize);
          *static_cast<uint32_t *>(storage) = tupleSize;
          TupleTypeConvert<0, T...>::onSendImpl(static_cast<void *>(static_cast<uint32_t *>(storage) + 1), std::get<Idx>(val)...);
