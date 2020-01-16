@@ -134,6 +134,7 @@ public:
 protected:
    MessageMetaData _metaData;
    std::vector<DataPoint> _dataPoints;
+   MessageBuffer _buffer;
    };
 
 

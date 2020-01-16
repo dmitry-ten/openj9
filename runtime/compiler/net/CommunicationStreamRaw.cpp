@@ -5,7 +5,8 @@ namespace JITServer
 {
 uint32_t CommunicationStreamRaw::CONFIGURATION_FLAGS = 0;
 
-void CommunicationStreamRaw::initVersion()
+void
+CommunicationStreamRaw::initVersion()
    {
    if (TR::Compiler->target.is64Bit() && TR::Options::useCompressedPointers())
       {
@@ -13,5 +14,4 @@ void CommunicationStreamRaw::initVersion()
       }
    CONFIGURATION_FLAGS |= JAVA_SPEC_VERSION & JITServerJavaVersionMask;
    }
-
 }
