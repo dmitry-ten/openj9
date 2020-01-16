@@ -25,115 +25,100 @@ public:
       };
 
    // Struct containing message metadata,
-   // i.e. number of data points and message type.
-   // This is a struct instead of just being members of
-   // Message class because we write/read metadata separately
-   // from the message data, so having this struct is convenient.
-   struct MessageMetaData
+   // i.e. number of data points, type and message type.
+   struct MetaData
       {
-      MessageMetaData() :
-         numDataPoints(0),
-         totalSize(0)
+      MetaData() :
+         numDataPoints(0)
          {}
 
       uint16_t numDataPoints; // number of data points in a message
-      long int totalSize; // total number of data bytes in the message
       MessageType type;
       uint64_t version;
       };
 
    // Struct describing a single data point in a message.
-   // Contains metadata describing data type and size
-   // and a pointer to the beginning of the data.
-   // data pointer 
-   struct DataPoint
+   struct DataDescriptor
       {
-      struct MetaData
-         {
-         DataType type;
-         uint32_t size;
-         };
+      DataType type;
+      uint32_t size; // size of the data segment, which can include nested data
 
-      DataPoint(MetaData metaData, const void *data) :
-         metaData(metaData),
-         data((void *) data)
+      DataDescriptor(DataType type, uint32_t size) :
+         type(type),
+         size(size)
          {}
 
-      DataPoint(DataType type, uint32_t size, const void *data) :
-         data((void  *) data)
-         {
-         metaData.type = type;
-         metaData.size = size;
-         }
+      bool isContiguous() const { return type != VECTOR && type != TUPLE; }
 
-      DataPoint(MetaData metaData) :
-         metaData(metaData),
-         data(NULL)
-         {}
-
-      bool isContiguous() const { return metaData.type != VECTOR && metaData.type != TUPLE; }
-
-      const uint32_t serializedSize() const
-         {
-         if (isContiguous())
-            {
-            return sizeof(MetaData) + metaData.size;
-            }
-         else
-            {
-            uint32_t numInnerPoints = *static_cast<uint32_t *>(data);
-            Message::DataPoint *dPoints = reinterpret_cast<Message::DataPoint *>(static_cast<uint32_t *>(data) + 1);
-            uint32_t totalSize = sizeof(MetaData) + sizeof(uint32_t) + metaData.size;
-            for (uint32_t i = 0; i < numInnerPoints; ++i)
-               {
-               totalSize += dPoints[i].serializedSize();
-               }
-            return totalSize;
-            }
-         }
-
-      MetaData metaData;
-      void *data;
+      // const uint32_t serializedSize() const
+         // {
+         // if (isContiguous())
+            // {
+            // return sizeof(MetaData) + metaData.size;
+            // }
+         // else
+            // {
+            // uint32_t numInnerPoints = *static_cast<uint32_t *>(data);
+            // Message::DataPoint *dPoints = reinterpret_cast<Message::DataPoint *>(static_cast<uint32_t *>(data) + 1);
+            // uint32_t totalSize = sizeof(MetaData) + sizeof(uint32_t) + metaData.size;
+            // for (uint32_t i = 0; i < numInnerPoints; ++i)
+               // {
+               // totalSize += dPoints[i].serializedSize();
+               // }
+            // return totalSize;
+            // }
+         // }
       };
 
-   void setMetaData(MessageMetaData metaData)
+   void setMetaData(const MetaData &metaData)
       {
-      _metaData = metaData;
+      MetaData *metaDataPtr = _buffer.writeValue(metaData);
+      _metaData = metaDataPtr;
       }
 
-   const MessageMetaData &getMetaData() const { return _metaData; }
+   MetaData *getMetaData() const { return _metaData; }
 
-   void addDataPoint(const DataPoint &dataPoint, bool isWrite)
+   void addData(const DataDescriptor &desc, void *dataStart)
       {
-      // this function needs to increment numDataPoints when called
-      // for writing the message, but not when called for reading.
-      //
-      if (isWrite)
+      DataDescriptor *descPtr = _buffer.writeValue(desc);
+      _buffer.writeData(dataStart, desc.size);
+      _dataPoints.push_back(descPtr);
+      _metaData->numDataPoints++;
+      }
+
+   DataDescriptor *getDescriptor(size_t idx) { return _descriptors[idx]; }
+
+   void reconstruct()
+      {
+      // Assume that buffer is populated with data that defines a valid message
+      // Reconstruct the message by setting correct meta data and pointers to descriptors
+      _metaData = _buffer.readValue<MetaData>();
+      for (uint16_t i = 0; i < _metaData->numDataPoints; ++i)
          {
-         _metaData.numDataPoints++;
-
+         DataDescriptor *curDesc = _buffer.readValue<DataDescriptor>();
+         _descriptors.push_back(curDesc);
+         // skip the actual data
+         _buffer.readData(curDesc->size);
          }
-
-      _dataPoints.push_back(dataPoint);
       }
 
-   const DataPoint &getDataPoint(size_t idx) const { return _dataPoints[idx]; }
+   void setType(MessageType type) { _metaData->type = type; }
 
-   void setType(MessageType type) { _metaData.type = type; }
+   MessageType type() const { return _metaData->type; }
 
-   MessageType type() const { return _metaData.type; }
+   MessageBuffer *getBuffer() { return &_buffer; }
 
    void clear()
       {
       _metaData.numDataPoints = 0;
-      _metaData.totalSize = 0;
-      _dataPoints.clear();
+      _descriptors.clear();
+      _buffer.clear();
       }
 
 
 protected:
-   MessageMetaData _metaData;
-   std::vector<DataPoint> _dataPoints;
+   MetaData *_metaData;
+   std::vector<DataDescriptor *> _descriptors;
    MessageBuffer _buffer;
    };
 

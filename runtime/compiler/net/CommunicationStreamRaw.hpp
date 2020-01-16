@@ -64,17 +64,17 @@ protected:
       uint32_t serializedSize;
       readBlocking(serializedSize);
       uint32_t messageSize = serializedSize - sizeof(uint32_t);
-      readBlocking(_msgBuffer.getStorage(), messageSize);
+      readBlocking(msg.getBuffer()->getStart(), messageSize);
 
-      _msgBuffer.deserializeMessage(msg);
+      msg.reconstruct();
       
       // fprintf(stderr, "readMessage numDataPoints=%d serializedSize=%ld\n", msg.getMetaData().numDataPoints, serializedSize);
       }
 
    void writeMessage(Message &msg)
       {
-      uint32_t serializedSize = 0;
-      const char *serialMsg = _msgBuffer.serializeMessage(msg, serializedSize);
+      uint32_t serializedSize = msg.getBuffer()->size();
+      const char *serialMsg = msg.getBuffer()->getStart();
       // fprintf(stderr, "writeMessage numDataPoints=%d serializedSize=%ld\n", msg.getMetaData().numDataPoints, serializedSize);
       writeBlocking(serialMsg, serializedSize);
       msg.clear();
@@ -99,7 +99,6 @@ protected:
    static uint32_t CONFIGURATION_FLAGS;
 
 private:
-   MessageBuffer _msgBuffer;
    // readBlocking and writeBlocking are functions that directly read/write
    // passed object from/to the socket. For the object to be correctly written,
    // it needs to be contiguous.

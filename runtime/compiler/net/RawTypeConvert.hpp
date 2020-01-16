@@ -42,53 +42,59 @@ namespace JITServer
    template <typename T, typename = void> struct RawTypeConvert { };
    template <> struct RawTypeConvert<uint32_t>
       {
-      static inline uint32_t onRecv(const Message::DataPoint *dPoint) { return *static_cast<uint32_t *>(dPoint->data); }
-      static inline Message::DataPoint onSend(const uint32_t &val)
+      static inline uint32_t onRecv(const Message::DataDescriptor *desc) { return *static_cast<uint32_t *>(desc + 1); }
+      static inline uint32_t onSend(Message &msg, const uint32_t &val)
          {
-         return Message::DataPoint(Message::DataType::UINT32, sizeof(uint32_t), &val);
+         msg.addData(Message::DataDescriptor(Message::DataType::UINT32, sizeof(uint32_t)), &val);
+         return sizeof(uint32_t);
          }
       };
    template <> struct RawTypeConvert<uint64_t>
       {
-      static inline uint64_t onRecv(const Message::DataPoint *dPoint) { return *static_cast<uint64_t *>(dPoint->data); }
-      static inline Message::DataPoint onSend(const uint64_t &val)
+      static inline uint64_t onRecv(const Message::DataDescriptor *desc) { return *static_cast<uint64_t *>(desc + 1); }
+      static inline uint32_t onSend(Message &msg, const uint64_t &val)
          {
-         return Message::DataPoint(Message::DataType::UINT64, sizeof(uint64_t), &val);
+         msg.addData(Message::DataDescriptor(Message::DataType::UINT64, sizeof(uint64_t)), &val);
+         return sizeof(uint64_t);
          }
       };
    template <> struct RawTypeConvert<int32_t>
       {
-      static inline int32_t onRecv(const Message::DataPoint *dPoint) { return *static_cast<int32_t *>(dPoint->data); }
-      static inline Message::DataPoint onSend(const int32_t &val)
+      static inline int32_t onRecv(const Message::DataDescriptor *desc) { return *static_cast<int32_t *>(desc + 1); }
+      static inline uint32_t onSend(Message &msg, const int32_t &val)
          {
-         return Message::DataPoint(Message::DataType::INT32, sizeof(int32_t), &val);
+         msg.addData(Message::DataDescriptor(Message::DataType::INT32, sizeof(int32_t)), &val);
+         return sizeof(int32_t);
          }
       };
    template <> struct RawTypeConvert<int64_t>
       {
-      static inline int64_t onRecv(const Message::DataPoint *dPoint) { return *static_cast<int64_t *>(dPoint->data); }
-      static inline Message::DataPoint onSend(const int64_t &val)
+      static inline int64_t onRecv(const Message::DataDescriptor *desc) { return *static_cast<int64_t *>(desc + 1); }
+      static inline uint32_t onSend(Message &msg, const int64_t &val)
          {
-         return Message::DataPoint(Message::DataType::INT64, sizeof(int64_t), &val);
+         msg.addData(Message::DataDescriptor(Message::DataType::INT64, sizeof(int64_t)), &val);
+         return sizeof(int64_t);
          }
       };
    template <> struct RawTypeConvert<bool>
       {
-      static inline bool onRecv(const Message::DataPoint *dPoint) { return *static_cast<bool *>(dPoint->data); }
-      static inline Message::DataPoint onSend(const bool &val)
+      static inline bool onRecv(const Message::DataDescriptor *desc) { return *static_cast<bool *>(desc + 1); }
+      static inline uint32_t onSend(Message &msg, const bool &val)
          {
-         return Message::DataPoint(Message::DataType::BOOL, sizeof(bool), &val);
+         msg.addData(Message::DataDescriptor(Message::DataType::BOOL, sizeof(bool)), &val);
+         return sizeof(bool);
          }
       };
    template <> struct RawTypeConvert<const std::string>
       {
-      static inline std::string onRecv(const Message::DataPoint *dataPoint)
+      static inline std::string onRecv(const Message::DataDescriptor *desc)
          {
-         return std::string(static_cast<char *>(dataPoint->data), dataPoint->metaData.size);
+         return std::string(static_cast<char *>(desc + 1), desc->size);
          }
-      static inline Message::DataPoint onSend(const std::string &value)
+      static inline uint32_t onSend(Message &msg, const std::string &value)
          {
-         return Message::DataPoint(Message::DataType::STRING, value.length(), &value[0]);
+         msg.addData(Message::DataDescriptor(Message::DataType::STRING, value.length()), &val);
+         return value.length();
          }
       };
 
@@ -97,45 +103,53 @@ namespace JITServer
    // For trivially copyable classes
    template <typename T> struct RawTypeConvert<T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type>
       {
-      static inline T onRecv(const Message::DataPoint *dataPoint) { return *static_cast<T *>(dataPoint->data); }
-      static inline Message::DataPoint onSend(const T &value)
+      static inline T onRecv(const Message::DataDescriptor *desc) { return *static_cast<T *>(desc + 1); }
+      static inline uint32_t onSend(Message &msg, const T &value)
          {
-         return Message::DataPoint(Message::DataType::OBJECT, sizeof(T), &value);
+         msg.addData(Message::DataDescriptor(Message::DataType::OBJECT, sizeof(T)), &value);
+         return sizeof(T);
          }
       };
 
    // For vectors
    template <typename T> struct RawTypeConvert<T, typename std::enable_if<std::is_same<T, std::vector<typename T::value_type>>::value>::type>
       {
-      static inline T onRecv(const Message::DataPoint *dataPoint)
+      static inline T onRecv(const Message::DataDescriptor *desc)
          {
-         uint32_t size = *static_cast<uint32_t *>(dataPoint->data);
+         Message::DataDescriptor *sizeDesc = desc + 1;
+         uint32_t size = RawTypeConvert<uint32_t>::onRecv(sizeDesc);
 
          std::vector<typename T::value_type> values;
          values.reserve(size);
 
-         auto dPoints = reinterpret_cast<Message::DataPoint *>(static_cast<uint32_t *>(dataPoint->data) + 1);
+         auto curDesc = reinterpret_cast<Message::DataDescriptor *>(reinterpret_cast<char *>(sizeDesc) + sizeDesc->size);
+         char *ptr = reinterpret_cast<char *>(curDesc);
          for (int32_t i = 0; i < size; ++i)
             {
-            values.push_back(RawTypeConvert<typename T::value_type>::onRecv(&dPoints[i]));
+            values.push_back(RawTypeConvert<typename T::value_type>::onRecv(curDesc));
+            ptr += curDesc->size + sizeof(Message::DataDescriptor);
+            curDesc += reinterpret_cast<Message::DataDescriptor *>(ptr);
             }
          return values;
          }
-      static inline Message::DataPoint onSend(const T &value)
+      static inline uint32_t onSend(Message &msg, const T &value)
          {
-         uint32_t dataSize = sizeof(uint32_t) + value.size() * sizeof(Message::DataPoint);
-         Message::DataPoint dPoint = Message::DataPoint(Message::DataType::VECTOR, dataSize, NULL);
+         Message::DataDescriptor *desc = message.reserveDescriptor();
          // Serialize each element in a vector as its own datapoint
-         // call onSend for every value of the vector and put the result in a dynamically allocated buffer
-         void *storage = malloc(dataSize);
-         *static_cast<uint32_t *>(storage) = value.size();
-         auto dPoints = reinterpret_cast<Message::DataPoint *>(static_cast<uint32_t *>(storage) + 1);
+         // Write the size of the vector as a data point
+         uint32_t totalSize = sizeof(uint32_t) + value.size() * sizeof(Message::DataDescriptor);
+         RawTypeConvert<uint32_t>::onSend(msg, value.size());
          for (int32_t i = 0; i < value.size(); ++i)
             {
-            dPoints[i] = RawTypeConvert<typename T::value_type>::onSend(value[i]);
+            // Will write n additional data points to the buffer
+            // Undesired sideeffect is that numDataPoints is now higher than needed.
+            // Maybe we can ignore that for now, because we can still iterate over
+            // outer data points by looking at the size 
+            totalSize += RawTypeConvert<typename T::value_type>::onSend(msg, value[i]);
             }
-         dPoint.data = storage;
-         return dPoint;
+         desc.type = Message::DataType::VECTOR;
+         desc.size = totalSize;
+         return totalSize;
          }
       };
    // For tuples
@@ -148,58 +162,60 @@ namespace JITServer
    template <size_t n, typename Arg1, typename... Args>
    struct TupleTypeConvert
       {
-      static inline std::tuple<Arg1, Args...> onRecvImpl(void *startPtr)
+      static inline std::tuple<Arg1, Args...> onRecvImpl(Message::DataDescriptor *desc)
          {
-         return std::tuple_cat(TupleTypeConvert<n, Arg1>::onRecvImpl(startPtr),
-                               TupleTypeConvert<n + 1, Args...>::onRecvImpl(static_cast<void *>(static_cast<Message::DataPoint *>(startPtr) + 1)));
+         return std::tuple_cat(TupleTypeConvert<n, Arg1>::onRecvImpl(desc),
+                               TupleTypeConvert<n + 1, Args...>::onRecvImpl(
+                                 reinterpret_cast<Message::DataDescriptor *>(
+                                    reinterpret_cast<char *>(desc) + desc->size + sizeof(Message::DataDescriptor)
+                                 )));
          }
-      static inline void onSendImpl(void *startPtr, const Arg1 &arg1, const Args&... args)
+      static inline uint32_t onSendImpl(Message &msg, const Arg1 &arg1, const Args&... args)
          {
-         TupleTypeConvert<n, Arg1>::onSendImpl(startPtr, arg1);
-         TupleTypeConvert<n + 1, Args...>::onSendImpl(static_cast<void *>(static_cast<Message::DataPoint *>(startPtr) + 1), args...);
+         uint32_t totalSize = TupleTypeConvert<n, Arg1>::onSendImpl(msg, arg1);
+         totalSize += TupleTypeConvert<n + 1, Args...>::onSendImpl(msg, args...);
+         return totalSize;
          }
       };
 
    template <size_t n, typename Arg1>
    struct TupleTypeConvert<n, Arg1>
       {
-      static inline std::tuple<Arg1> onRecvImpl(void *startPtr)
+      static inline std::tuple<Arg1> onRecvImpl(Message::DataDescriptor *desc)
          {
-         Message::DataPoint *dPoint = reinterpret_cast<Message::DataPoint *>(startPtr);
-         return std::make_tuple(RawTypeConvert<Arg1>::onRecv(dPoint));
+         return std::make_tuple(RawTypeConvert<Arg1>::onRecv(desc));
          }
-      static inline void onSendImpl(void *startPtr, const Arg1 &arg1)
+      static inline uint32_t onSendImpl(Message &msg, const Arg1 &arg1)
          {
-         *static_cast<Message::DataPoint *>(startPtr) = RawTypeConvert<Arg1>::onSend(arg1);
+         return RawTypeConvert<Arg1>::onSend(msg, arg1);
          }
       };
 
    template <typename... T> struct RawTypeConvert<const std::tuple<T...>>
       {
-      static inline std::tuple<T...> onRecv(const Message::DataPoint *dataPoint)
+      static inline std::tuple<T...> onRecv(const Message::DataDescriptor *desc)
          {
-         return TupleTypeConvert<0, T...>::onRecvImpl(static_cast<void *>((static_cast<uint32_t *>(dataPoint->data) + 1)));
+         return TupleTypeConvert<0, T...>::onRecvImpl(desc + 1);
          }
 
       template <typename Tuple, size_t... Idx>
-      static inline Message::DataPoint onSendImpl(const Tuple &val, index_tuple_raw<Idx...>)
+      static inline uint32_t onSendImpl(Message &msg, const Tuple &val, index_tuple_raw<Idx...>)
          {
          size_t tupleSize = std::tuple_size<typename std::decay<decltype(val)>::type>::value;
-         uint32_t dataSize = sizeof(uint32_t) + tupleSize * sizeof(Message::DataPoint);
-         Message::DataPoint dPoint = Message::DataPoint(Message::DataType::TUPLE, dataSize, NULL);
-         void *storage = malloc(dataSize);
-         *static_cast<uint32_t *>(storage) = tupleSize;
-         TupleTypeConvert<0, T...>::onSendImpl(static_cast<void *>(static_cast<uint32_t *>(storage) + 1), std::get<Idx>(val)...);
-         dPoint.data = storage;
-         return dPoint;
+         uint32_t totalSize = tupleSize * sizeof(Message::DataDescriptor);
+         Message::DataDescriptor *desc = msg.reserveDescriptor();
+         totalSize += TupleTypeConvert<0, T...>::onSendImpl(msg, std::get<Idx>(val)...);
+         desc->type = Message::DataType::TUPLE;
+         desc->size = totalSize;
+         return totalSize;
          }
       
-      static inline Message::DataPoint onSend(const std::tuple<T...> &val)
+      static inline uint32_t onSend(Message &msg, const std::tuple<T...> &val)
          {
          // Serialize each element in a tuple as its own datapoint
          // call onSend for every value of the tuple and put the result in a newly allocated buffer;
          using Idx = typename index_tuple_gen_raw<sizeof...(T)>::type;
-         return onSendImpl(val, Idx());
+         return onSendImpl(msg, val, Idx());
          }
       };
 
@@ -221,8 +237,7 @@ namespace JITServer
       {
       static void setArgs(Message &message, Arg1 &arg1)
          {
-         Message::DataPoint dPoint = RawTypeConvert<Arg1>::onSend(arg1);
-         message.addDataPoint(dPoint, true);
+         RawTypeConvert<Arg1>::onSend(message, arg1);
          }
       };
    template <typename... Args>
@@ -246,17 +261,17 @@ namespace JITServer
       {
       static std::tuple<Arg> getArgs(const Message &message, size_t n)
          {
-         auto data = message.getDataPoint(n);
+         Message::DataDescriptor *desc = message.getDescriptor(n);
          // if (data.type_case() != AnyPrimitive<typename ProtobufTypeConvert<Arg>::ProtoType>::typeCase())
             // throw StreamTypeMismatch("Received type " + std::to_string(data.type_case()) + " but expect type " + std::to_string(AnyPrimitive<typename ProtobufTypeConvert<Arg>::ProtoType>::typeCase()));
-         return std::make_tuple(RawTypeConvert<Arg>::onRecv(&data));
+         return std::make_tuple(RawTypeConvert<Arg>::onRecv(desc));
          }
       };
    template <typename... Args>
    std::tuple<Args...> getArgsRaw(const Message &message)
       {
-      if (sizeof...(Args) != message.getMetaData().numDataPoints)
-         throw StreamArityMismatch("Received " + std::to_string(message.getMetaData().numDataPoints) + " args to unpack but expect " + std::to_string(sizeof...(Args)) + "-tuple");
+      if (sizeof...(Args) != message.getMetaData()->numDataPoints)
+         throw StreamArityMismatch("Received " + std::to_string(message.getMetaData()->numDataPoints) + " args to unpack but expect " + std::to_string(sizeof...(Args)) + "-tuple");
       return GetArgsRaw<Args...>::getArgs(message, 0);
       }
    };
