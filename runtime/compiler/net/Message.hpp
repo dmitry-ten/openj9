@@ -70,52 +70,20 @@ public:
          // }
       };
 
-   void setMetaData(const MetaData &metaData)
-      {
-      MetaData *metaDataPtr = _buffer.writeValue(metaData);
-      _metaData = metaDataPtr;
-      }
+   Message();
 
    MetaData *getMetaData() const { return _metaData; }
 
-   void addData(const DataDescriptor &desc, void *dataStart)
-      {
-      DataDescriptor *descPtr = _buffer.writeValue(desc);
-      _buffer.writeData(dataStart, desc.size);
-      _dataPoints.push_back(descPtr);
-      _metaData->numDataPoints++;
-      }
-
+   void addData(const DataDescriptor &desc, void *dataStart);
+   DataDescriptor *reserveDescriptor();
    DataDescriptor *getDescriptor(size_t idx) { return _descriptors[idx]; }
-
-   void reconstruct()
-      {
-      // Assume that buffer is populated with data that defines a valid message
-      // Reconstruct the message by setting correct meta data and pointers to descriptors
-      _metaData = _buffer.readValue<MetaData>();
-      for (uint16_t i = 0; i < _metaData->numDataPoints; ++i)
-         {
-         DataDescriptor *curDesc = _buffer.readValue<DataDescriptor>();
-         _descriptors.push_back(curDesc);
-         // skip the actual data
-         _buffer.readData(curDesc->size);
-         }
-      }
+   void reconstruct();
 
    void setType(MessageType type) { _metaData->type = type; }
-
    MessageType type() const { return _metaData->type; }
 
    MessageBuffer *getBuffer() { return &_buffer; }
-
-   void clear()
-      {
-      _metaData.numDataPoints = 0;
-      _descriptors.clear();
-      _buffer.clear();
-      }
-
-
+   void clear();
 protected:
    MetaData *_metaData;
    std::vector<DataDescriptor *> _descriptors;
@@ -130,9 +98,9 @@ class ServerMessage : public Message
 class ClientMessage : public Message
    {
 public:
-   uint64_t version() { return _metaData.version; }
-   void setVersion(uint64_t version) { _metaData.version = version; }
-   void clearVersion() { _metaData.version = 0; }
+   uint64_t version() { return _metaData->version; }
+   void setVersion(uint64_t version) { _metaData->version = version; }
+   void clearVersion() { _metaData->version = 0; }
    };
 };
 #endif

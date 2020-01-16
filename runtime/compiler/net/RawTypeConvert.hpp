@@ -270,8 +270,8 @@ namespace JITServer
    template <typename... Args>
    std::tuple<Args...> getArgsRaw(const Message &message)
       {
-      if (sizeof...(Args) != message.getMetaData()->numDataPoints)
-         throw StreamArityMismatch("Received " + std::to_string(message.getMetaData()->numDataPoints) + " args to unpack but expect " + std::to_string(sizeof...(Args)) + "-tuple");
+      // if (sizeof...(Args) != message.getMetaData()->numDataPoints)
+         // throw StreamArityMismatch("Received " + std::to_string(message.getMetaData()->numDataPoints) + " args to unpack but expect " + std::to_string(sizeof...(Args)) + "-tuple");
       return GetArgsRaw<Args...>::getArgs(message, 0);
       }
    };

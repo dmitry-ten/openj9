@@ -34,6 +34,14 @@ public:
    void writeData(void *dataStart, uint32_t dataSize);
 
    template <typename T>
+   T *reserveValue()
+      {
+      T *val = reinterpret_cast<T *>(_curPtr);
+      _curPtr += sizeof(T);
+      return val;
+      }
+
+   template <typename T>
    T *readValue()
       {
       if (_curPtr + sizeof(T) >= size())
@@ -43,6 +51,8 @@ public:
       T *valuePtr = reinterpret_cast<T *>(_curPtr);
       _curPtr += sizeof(T);
       }
+
+   clear() { _curPtr = _storage; }
 
 private:
    void expandIfNeeded(uint32_t requiredSize);
