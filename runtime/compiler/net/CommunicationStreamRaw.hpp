@@ -55,30 +55,8 @@ protected:
       }
 
 
-   void readMessage(Message &msg)
-      {
-      msg.clear();
-      // read message meta data,
-      // which contains the message type
-      // and the number of data points
-      uint32_t serializedSize;
-      readBlocking(serializedSize);
-      uint32_t messageSize = serializedSize - sizeof(uint32_t);
-      readBlocking(msg.getBuffer()->getStart(), messageSize);
-
-      msg.reconstruct();
-      
-      // fprintf(stderr, "readMessage numDataPoints=%d serializedSize=%ld\n", msg.getMetaData().numDataPoints, serializedSize);
-      }
-
-   void writeMessage(Message &msg)
-      {
-      uint32_t serializedSize = msg.getBuffer()->size();
-      const char *serialMsg = msg.getBuffer()->getStart();
-      // fprintf(stderr, "writeMessage numDataPoints=%d serializedSize=%ld\n", msg.getMetaData().numDataPoints, serializedSize);
-      writeBlocking(serialMsg, serializedSize);
-      msg.clear();
-      }
+   void readMessage(Message &msg);
+   void writeMessage(Message &msg);
 
    int getConnFD() { return _connfd; }
 

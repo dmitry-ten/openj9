@@ -42,7 +42,7 @@ namespace JITServer
    template <typename T, typename = void> struct RawTypeConvert { };
    template <> struct RawTypeConvert<uint32_t>
       {
-      static inline uint32_t onRecv(const Message::DataDescriptor *desc) { return *static_cast<uint32_t *>(desc + 1); }
+      static inline uint32_t onRecv( Message::DataDescriptor *desc) { return *static_cast<uint32_t *>(desc->getDataStart()); }
       static inline uint32_t onSend(Message &msg, const uint32_t &val)
          {
          msg.addData(Message::DataDescriptor(Message::DataType::UINT32, sizeof(uint32_t)), &val);
@@ -51,7 +51,7 @@ namespace JITServer
       };
    template <> struct RawTypeConvert<uint64_t>
       {
-      static inline uint64_t onRecv(const Message::DataDescriptor *desc) { return *static_cast<uint64_t *>(desc + 1); }
+      static inline uint64_t onRecv( Message::DataDescriptor *desc) { return *static_cast<uint64_t *>(desc->getDataStart()); }
       static inline uint32_t onSend(Message &msg, const uint64_t &val)
          {
          msg.addData(Message::DataDescriptor(Message::DataType::UINT64, sizeof(uint64_t)), &val);
@@ -60,7 +60,7 @@ namespace JITServer
       };
    template <> struct RawTypeConvert<int32_t>
       {
-      static inline int32_t onRecv(const Message::DataDescriptor *desc) { return *static_cast<int32_t *>(desc + 1); }
+      static inline int32_t onRecv( Message::DataDescriptor *desc) { return *static_cast<int32_t *>(desc->getDataStart()); }
       static inline uint32_t onSend(Message &msg, const int32_t &val)
          {
          msg.addData(Message::DataDescriptor(Message::DataType::INT32, sizeof(int32_t)), &val);
@@ -69,7 +69,7 @@ namespace JITServer
       };
    template <> struct RawTypeConvert<int64_t>
       {
-      static inline int64_t onRecv(const Message::DataDescriptor *desc) { return *static_cast<int64_t *>(desc + 1); }
+      static inline int64_t onRecv( Message::DataDescriptor *desc) { return *static_cast<int64_t *>(desc->getDataStart()); }
       static inline uint32_t onSend(Message &msg, const int64_t &val)
          {
          msg.addData(Message::DataDescriptor(Message::DataType::INT64, sizeof(int64_t)), &val);
@@ -78,7 +78,7 @@ namespace JITServer
       };
    template <> struct RawTypeConvert<bool>
       {
-      static inline bool onRecv(const Message::DataDescriptor *desc) { return *static_cast<bool *>(desc + 1); }
+      static inline bool onRecv( Message::DataDescriptor *desc) { return *static_cast<bool *>(desc->getDataStart()); }
       static inline uint32_t onSend(Message &msg, const bool &val)
          {
          msg.addData(Message::DataDescriptor(Message::DataType::BOOL, sizeof(bool)), &val);
@@ -87,13 +87,13 @@ namespace JITServer
       };
    template <> struct RawTypeConvert<const std::string>
       {
-      static inline std::string onRecv(const Message::DataDescriptor *desc)
+      static inline std::string onRecv( Message::DataDescriptor *desc)
          {
-         return std::string(static_cast<char *>(desc + 1), desc->size);
+         return std::string(static_cast<char *>(desc->getDataStart()), desc->size);
          }
       static inline uint32_t onSend(Message &msg, const std::string &value)
          {
-         msg.addData(Message::DataDescriptor(Message::DataType::STRING, value.length()), &val);
+         msg.addData(Message::DataDescriptor(Message::DataType::STRING, value.length()), &value[0]);
          return value.length();
          }
       };
@@ -103,7 +103,7 @@ namespace JITServer
    // For trivially copyable classes
    template <typename T> struct RawTypeConvert<T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type>
       {
-      static inline T onRecv(const Message::DataDescriptor *desc) { return *static_cast<T *>(desc + 1); }
+      static inline T onRecv( Message::DataDescriptor *desc) { return *static_cast<T *>(desc->getDataStart()); }
       static inline uint32_t onSend(Message &msg, const T &value)
          {
          msg.addData(Message::DataDescriptor(Message::DataType::OBJECT, sizeof(T)), &value);
@@ -114,31 +114,31 @@ namespace JITServer
    // For vectors
    template <typename T> struct RawTypeConvert<T, typename std::enable_if<std::is_same<T, std::vector<typename T::value_type>>::value>::type>
       {
-      static inline T onRecv(const Message::DataDescriptor *desc)
+      static inline T onRecv( Message::DataDescriptor *desc)
          {
-         Message::DataDescriptor *sizeDesc = desc + 1;
+         Message::DataDescriptor *sizeDesc = static_cast<Message::DataDescriptor *>(desc->getDataStart());
          uint32_t size = RawTypeConvert<uint32_t>::onRecv(sizeDesc);
 
          std::vector<typename T::value_type> values;
          values.reserve(size);
 
-         auto curDesc = reinterpret_cast<Message::DataDescriptor *>(reinterpret_cast<char *>(sizeDesc) + sizeDesc->size);
+         auto curDesc = reinterpret_cast<Message::DataDescriptor *>(static_cast<char *>(sizeDesc->getDataStart()) + sizeDesc->size);
          char *ptr = reinterpret_cast<char *>(curDesc);
          for (int32_t i = 0; i < size; ++i)
             {
             values.push_back(RawTypeConvert<typename T::value_type>::onRecv(curDesc));
-            ptr += curDesc->size + sizeof(Message::DataDescriptor);
-            curDesc += reinterpret_cast<Message::DataDescriptor *>(ptr);
+            ptr = static_cast<char *>(curDesc->getDataStart()) + curDesc->size;
+            curDesc = reinterpret_cast<Message::DataDescriptor *>(ptr);
             }
          return values;
          }
       static inline uint32_t onSend(Message &msg, const T &value)
          {
-         Message::DataDescriptor *desc = message.reserveDescriptor();
+         uint32_t descOffset = msg.reserveDescriptor();
          // Serialize each element in a vector as its own datapoint
          // Write the size of the vector as a data point
-         uint32_t totalSize = sizeof(uint32_t) + value.size() * sizeof(Message::DataDescriptor);
-         RawTypeConvert<uint32_t>::onSend(msg, value.size());
+         uint32_t totalSize = (value.size() + 1) * sizeof(Message::DataDescriptor);
+         totalSize += RawTypeConvert<uint32_t>::onSend(msg, value.size());
          for (int32_t i = 0; i < value.size(); ++i)
             {
             // Will write n additional data points to the buffer
@@ -147,8 +147,9 @@ namespace JITServer
             // outer data points by looking at the size 
             totalSize += RawTypeConvert<typename T::value_type>::onSend(msg, value[i]);
             }
-         desc.type = Message::DataType::VECTOR;
-         desc.size = totalSize;
+         Message::DataDescriptor *desc = msg.getBuffer()->getValueAtOffset<Message::DataDescriptor>(descOffset);
+         desc->type = Message::DataType::VECTOR;
+         desc->size = totalSize;
          return totalSize;
          }
       };
@@ -167,7 +168,7 @@ namespace JITServer
          return std::tuple_cat(TupleTypeConvert<n, Arg1>::onRecvImpl(desc),
                                TupleTypeConvert<n + 1, Args...>::onRecvImpl(
                                  reinterpret_cast<Message::DataDescriptor *>(
-                                    reinterpret_cast<char *>(desc) + desc->size + sizeof(Message::DataDescriptor)
+                                    static_cast<char *>(desc->getDataStart()) + desc->size
                                  )));
          }
       static inline uint32_t onSendImpl(Message &msg, const Arg1 &arg1, const Args&... args)
@@ -193,9 +194,9 @@ namespace JITServer
 
    template <typename... T> struct RawTypeConvert<const std::tuple<T...>>
       {
-      static inline std::tuple<T...> onRecv(const Message::DataDescriptor *desc)
+      static inline std::tuple<T...> onRecv( Message::DataDescriptor *desc)
          {
-         return TupleTypeConvert<0, T...>::onRecvImpl(desc + 1);
+         return TupleTypeConvert<0, T...>::onRecvImpl(static_cast<Message::DataDescriptor *>(desc->getDataStart()));
          }
 
       template <typename Tuple, size_t... Idx>
@@ -203,8 +204,11 @@ namespace JITServer
          {
          size_t tupleSize = std::tuple_size<typename std::decay<decltype(val)>::type>::value;
          uint32_t totalSize = tupleSize * sizeof(Message::DataDescriptor);
-         Message::DataDescriptor *desc = msg.reserveDescriptor();
+         uint32_t descOffset = msg.reserveDescriptor();
          totalSize += TupleTypeConvert<0, T...>::onSendImpl(msg, std::get<Idx>(val)...);
+         // only get pointer to descriptor after all elements were serialized,
+         // because buffer might have been reallocated
+         Message::DataDescriptor *desc = msg.getBuffer()->getValueAtOffset<Message::DataDescriptor>(descOffset);
          desc->type = Message::DataType::TUPLE;
          desc->size = totalSize;
          return totalSize;
@@ -243,6 +247,7 @@ namespace JITServer
    template <typename... Args>
    void setArgsRaw(Message &message, Args&... args)
       {
+      message.getMetaData()->numDataPoints = sizeof...(args);
       SetArgsRaw<Args...>::setArgs(message, args...);
       }
 

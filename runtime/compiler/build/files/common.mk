@@ -394,6 +394,7 @@ JIT_PRODUCT_SOURCE_FILES+=\
     compiler/net/CommunicationStream.cpp \
     compiler/net/CommunicationStreamRaw.cpp \
     compiler/net/MessageBuffer.cpp \
+    compiler/net/Message.cpp \
     compiler/net/ProtobufTypeConvert.cpp \
     compiler/net/ServerStream.cpp \
     compiler/runtime/CompileService.cpp \
