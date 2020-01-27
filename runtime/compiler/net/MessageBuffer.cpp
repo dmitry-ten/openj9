@@ -3,6 +3,13 @@
 
 namespace JITServer
 {
+MessageBuffer::MessageBuffer() :
+   _capacity(100000000)
+   {
+   _storage = static_cast<char *>(malloc(_capacity));
+   _curPtr = _storage;
+   }
+
 uint32_t
 MessageBuffer::size()
    {
@@ -16,7 +23,8 @@ MessageBuffer::expandIfNeeded(uint32_t requiredSize)
       {
       // deallocate current storage and reallocate it to fit the message,
       // copying the values
-      _capacity = requiredSize * 2;
+      char *oldPtr = _curPtr;
+      _capacity = requiredSize;
       char *newStorage = static_cast<char *>(malloc(_capacity));
       uint32_t curSize = size();
       memcpy(newStorage, _storage, curSize);
@@ -27,7 +35,8 @@ MessageBuffer::expandIfNeeded(uint32_t requiredSize)
       // probably the easiest solution is to have _descriptors vector
       // contain offsets from the start of the storage to the beginning
       // of descriptor i, instead of the direct address
-      fprintf(stderr, "\nExpanded message buffer to %u\n", _capacity);
+      printf("\nExpanded message buffer to %u old curPtr=%p new curPtr=%p\n", _capacity, oldPtr, _curPtr);
+
       }
    }
 

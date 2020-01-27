@@ -145,6 +145,8 @@ namespace JITServer
             // Undesired sideeffect is that numDataPoints is now higher than needed.
             // Maybe we can ignore that for now, because we can still iterate over
             // outer data points by looking at the size 
+            //
+            // TODO: this does not work if elements are tuples, e.g. CHTable data
             totalSize += RawTypeConvert<typename T::value_type>::onSend(msg, value[i]);
             }
          Message::DataDescriptor *desc = msg.getBuffer()->getValueAtOffset<Message::DataDescriptor>(descOffset);
@@ -188,13 +190,13 @@ namespace JITServer
          }
       static inline uint32_t onSendImpl(Message &msg, const Arg1 &arg1)
          {
-         return RawTypeConvert<Arg1>::onSend(msg, arg1);
+         return RawTypeConvert<Arg1>::onSend(msg, arg1) + sizeof(Message::DataDescriptor);
          }
       };
 
    template <typename... T> struct RawTypeConvert<const std::tuple<T...>>
       {
-      static inline std::tuple<T...> onRecv( Message::DataDescriptor *desc)
+      static inline std::tuple<T...> onRecv(Message::DataDescriptor *desc)
          {
          return TupleTypeConvert<0, T...>::onRecvImpl(static_cast<Message::DataDescriptor *>(desc->getDataStart()));
          }
@@ -202,10 +204,10 @@ namespace JITServer
       template <typename Tuple, size_t... Idx>
       static inline uint32_t onSendImpl(Message &msg, const Tuple &val, index_tuple_raw<Idx...>)
          {
-         size_t tupleSize = std::tuple_size<typename std::decay<decltype(val)>::type>::value;
-         uint32_t totalSize = tupleSize * sizeof(Message::DataDescriptor);
+         // size_t tupleSize = std::tuple_size<typename std::decay<decltype(val)>::type>::value;
+         // uint32_t totalSize = tupleSize * sizeof(Message::DataDescriptor);
          uint32_t descOffset = msg.reserveDescriptor();
-         totalSize += TupleTypeConvert<0, T...>::onSendImpl(msg, std::get<Idx>(val)...);
+         uint32_t totalSize = TupleTypeConvert<0, T...>::onSendImpl(msg, std::get<Idx>(val)...);
          // only get pointer to descriptor after all elements were serialized,
          // because buffer might have been reallocated
          Message::DataDescriptor *desc = msg.getBuffer()->getValueAtOffset<Message::DataDescriptor>(descOffset);

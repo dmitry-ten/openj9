@@ -2,6 +2,22 @@
 
 namespace JITServer
 {
+void
+Message::DataDescriptor::print()
+   {
+   fprintf(stderr, "DataDescriptor[%p]: type=%d size=%lu\n", this, type, size);
+   if (!isContiguous())
+      {
+      DataDescriptor *curDesc = static_cast<DataDescriptor *>(getDataStart());
+      while ((char *) curDesc->getDataStart() + curDesc->size - (char *) getDataStart() < size)
+         {
+         curDesc->print();
+         curDesc = reinterpret_cast<DataDescriptor *>(reinterpret_cast<char *>(curDesc->getDataStart()) + curDesc->size);
+         }
+      }
+   fprintf(stderr, "DataDescriptor[%p] end\n", this);
+   }
+
 Message::Message()
    {
    // metadata is always in the beginning of the message

@@ -53,6 +53,8 @@ public:
       bool isContiguous() const { return type != VECTOR && type != TUPLE; }
 
       void *getDataStart() { return static_cast<void *>(&size + 1); }
+
+      void print();
       };
 
    Message();

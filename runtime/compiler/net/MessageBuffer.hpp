@@ -10,12 +10,7 @@ namespace JITServer
 class MessageBuffer
    {
 public:
-   MessageBuffer() :
-      _capacity(10000)
-      {
-      _storage = static_cast<char *>(malloc(_capacity));
-      _curPtr = _storage;
-      }
+   MessageBuffer();
 
    ~MessageBuffer()
       {
