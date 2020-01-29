@@ -24,11 +24,13 @@ CommunicationStreamRaw::readMessage(Message &msg)
    // and the number of data points
    uint32_t serializedSize;
    readBlocking(serializedSize);
-   if (serializedSize > 1000000)
-      fprintf(stderr, "read large message size=%d\n", serializedSize);
+   // if (serializedSize > 10000)
+      // fprintf(stderr, "read message size=%d\n", serializedSize);
    uint32_t messageSize = serializedSize - sizeof(uint32_t);
    msg.getBuffer()->expandIfNeeded(serializedSize);
+   msg.getBuffer()->writeValue(serializedSize);
    readBlocking(msg.getBuffer()->getBufferStart() + sizeof(uint32_t), messageSize);
+   // msg.checkIntegrity();
 
    msg.reconstruct();
    
@@ -38,11 +40,12 @@ CommunicationStreamRaw::readMessage(Message &msg)
 void
 CommunicationStreamRaw::writeMessage(Message &msg)
    {
-   const char *serialMsg = msg.serialize();
+   char *serialMsg = msg.serialize();
    // fprintf(stderr, "writeMessage numDataPoints=%d serializedSize=%ld\n", msg.getMetaData()->numDataPoints, msg.serializedSize());
    //
-   if (msg.serializedSize() > 1000000)
-      fprintf(stderr, "write large message size=%d\n", msg.serializedSize());
+   // if (msg.serializedSize() > 10000)
+      // fprintf(stderr, "write message size=%d\n", msg.serializedSize());
+   // msg.checkIntegrity();
    writeBlocking(serialMsg, msg.serializedSize());
    msg.clearForWrite();
    }

@@ -4,7 +4,7 @@
 namespace JITServer
 {
 MessageBuffer::MessageBuffer() :
-   _capacity(100000000)
+   _capacity(10000)
    {
    _storage = static_cast<char *>(malloc(_capacity));
    _curPtr = _storage;
@@ -24,7 +24,7 @@ MessageBuffer::expandIfNeeded(uint32_t requiredSize)
       // deallocate current storage and reallocate it to fit the message,
       // copying the values
       char *oldPtr = _curPtr;
-      _capacity = requiredSize;
+      _capacity = requiredSize * 2;
       char *newStorage = static_cast<char *>(malloc(_capacity));
       uint32_t curSize = size();
       memcpy(newStorage, _storage, curSize);

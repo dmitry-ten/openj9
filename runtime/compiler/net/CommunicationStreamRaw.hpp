@@ -94,6 +94,15 @@ private:
          {
          throw JITServer::StreamFailure("JITServer I/O error: read error");
          }
+      else if (bytesRead < size)
+         {
+         char *remainingPtr = reinterpret_cast<char *>(ptr) + bytesRead;
+         int32_t remainingRead = read(_connfd, remainingPtr, size - bytesRead);
+         if (remainingRead != size - bytesRead)
+            {
+            throw JITServer::StreamFailure("JITServer I/O error: read error");
+            }
+         }
       }
 
    template <typename T>
@@ -108,7 +117,16 @@ private:
       int32_t bytesWritten = write(_connfd, ptr, size);
       if (bytesWritten == -1)
          {
-         throw JITServer::StreamFailure("JITServer I/O error: read error");
+         throw JITServer::StreamFailure("JITServer I/O error: write error");
+         }
+      else if (bytesWritten < size)
+         {
+         char *remainingPtr = reinterpret_cast<char *>(ptr) + bytesWritten;
+         int32_t remainingWritten = write(_connfd, remainingPtr, size - bytesWritten);
+         if (remainingWritten != size - bytesWritten)
+            {
+            throw JITServer::StreamFailure("JITServer I/O error: write error");
+            }
          }
       }
    };

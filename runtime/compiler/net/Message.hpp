@@ -50,6 +50,8 @@ public:
          size(size)
          {}
 
+      uint32_t checkIntegrity(uint32_t serializedSize);
+
       bool isContiguous() const { return type != VECTOR && type != TUPLE; }
 
       void *getDataStart() { return static_cast<void *>(&size + 1); }
@@ -59,6 +61,7 @@ public:
 
    Message();
 
+   void checkIntegrity();
    MetaData *getMetaData() const;
 
    void addData(const DataDescriptor &desc, const void *dataStart);
@@ -72,7 +75,7 @@ public:
 
    MessageBuffer *getBuffer() { return &_buffer; }
 
-   const char *serialize();
+   char *serialize();
    uint32_t serializedSize() { return _buffer.size(); }
 
    void clearForRead();

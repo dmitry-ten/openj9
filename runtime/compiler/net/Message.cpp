@@ -1,4 +1,5 @@
 #include "net/Message.hpp"
+#include "infra/Assert.hpp"
 
 namespace JITServer
 {
@@ -9,13 +10,55 @@ Message::DataDescriptor::print()
    if (!isContiguous())
       {
       DataDescriptor *curDesc = static_cast<DataDescriptor *>(getDataStart());
-      while ((char *) curDesc->getDataStart() + curDesc->size - (char *) getDataStart() < size)
+      while ((char *) curDesc->getDataStart() + curDesc->size - (char *) getDataStart() <= size)
          {
          curDesc->print();
          curDesc = reinterpret_cast<DataDescriptor *>(reinterpret_cast<char *>(curDesc->getDataStart()) + curDesc->size);
          }
       }
    fprintf(stderr, "DataDescriptor[%p] end\n", this);
+   }
+
+uint32_t
+Message::DataDescriptor::checkIntegrity(uint32_t serializedSize)
+   {
+   TR_ASSERT(size < serializedSize, "Descriptor corrupted");
+   if (!isContiguous())
+      {
+      uint32_t totalSize = 0;
+      DataDescriptor *curDesc = static_cast<DataDescriptor *>(getDataStart());
+      uint32_t numNestedPoints = 0;
+      while ((char *) curDesc->getDataStart() + curDesc->size - (char *) getDataStart() <= size)
+         {
+         totalSize += curDesc->checkIntegrity(serializedSize);
+         curDesc = reinterpret_cast<DataDescriptor *>(reinterpret_cast<char *>(curDesc->getDataStart()) + curDesc->size);
+         numNestedPoints++;
+         }
+      TR_ASSERT(totalSize + numNestedPoints * sizeof(DataDescriptor) ==  size, "Nested descriptors corrupted");
+      return size;
+      }
+   else
+      {
+      return size;
+      }
+   }
+
+void
+Message::checkIntegrity()
+   {
+   uint32_t serializedSize = *_buffer.getValueAtOffset<uint32_t>(0);
+   
+   uint32_t numDescriptors = 0;
+   DataDescriptor *curDesc = _buffer.getValueAtOffset<DataDescriptor>(20);
+   while ((char *) curDesc < _buffer.getBufferStart() + serializedSize)
+      {
+      if (serializedSize > 20000)
+         curDesc->print();
+      // check integrity of nested descriptors
+      curDesc->checkIntegrity(serializedSize);
+      curDesc = _buffer.getValueAtOffset<DataDescriptor>(_buffer.offset((char *) curDesc->getDataStart()) + curDesc->size);
+      numDescriptors++;
+      }
    }
 
 Message::Message()
@@ -75,7 +118,7 @@ Message::reconstruct()
       }
    }
 
-const char *
+char *
 Message::serialize()
    {
    *_buffer.getValueAtOffset<uint32_t>(_serializedSizeOffset) = _buffer.size();
@@ -88,7 +131,7 @@ Message::clearForRead()
    _descriptorOffsets.clear();
    _buffer.clear();
    _metaDataOffset = 0;
-   _serializedSizeOffset = _buffer.reserveValue<uint32_t>();
+   // _serializedSizeOffset = _buffer.reserveValue<uint32_t>();
    }
 
 void
