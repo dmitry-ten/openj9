@@ -49,7 +49,7 @@ This cache stores IProfiler data for methods whose profiling data might get upda
 - Per-compilation cache: stores data for interpreted methods and a method currently being compiled. It is a nested hash table. The outer cache uses `IPTableHeap_t` hash table type, and takes `J9Method *` as a key. The inner table uses `IPTableHeapEntry`, and takes bytecode index as a key, and stores profiling data as a value.
 It is possible for this cache to contain outdated profiling data, because IProfiler might collect additional data on the client after we cache it. However, the lifetime of a compilation is pretty short, so using suboptimal profiling information does not affect performance.
 - Persistent cache: stores data for already compiled methods, because their interpreter profiling data will definitely not change.
-Uses a slightly different hash table type `IPTable_t`, because it's located inside entries of `J9MethodInfo`, so it only takes
+Uses a slightly different hash table type `IPBCTable_t`, because it's located inside entries of `J9MethodInfo`, so it only takes
 bytecode index as a key.
 ## `TR_ResolvedJ9JITServerMethod`
 Some per-compilation caches are stored inside resolved methods, they store results of some resolved method query. These caches do not need to be explicitly cleared, since resolved methods only exist for the duration of one compilation. I am not sure if it is a good thing to have local caches spread out across 2 files, maybe it would be a good idea to move all caches from resolved method to `CompilationInfoPerThreadRemote`.

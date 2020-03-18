@@ -38,10 +38,11 @@ class TR_PersistentClassInfo;
 class J9ConstantPool;
 class TR_IPBytecodeHashTableEntry;
 class TR_MethodToBeCompiled;
+class TR_IPMethodHashTableEntry;
 namespace JITServer { class ServerStream; }
 
 
-using IPTable_t = PersistentUnorderedMap<uint32_t, TR_IPBytecodeHashTableEntry*>;
+using IPBCTable_t = PersistentUnorderedMap<uint32_t, TR_IPBytecodeHashTableEntry*>;
 using TR_JitFieldsCacheEntry = std::pair<J9Class*, UDATA>;
 using TR_JitFieldsCache = PersistentUnorderedMap<int32_t, TR_JitFieldsCacheEntry>;
 
@@ -281,10 +282,11 @@ class ClientSessionData
       J9ROMMethod *_romMethod; // pointer to local/server cache
       // The following is a hashtable that maps a bcIndex to IProfiler data
       // The hashtable is created on demand (NULL means it is missing)
-      IPTable_t *_IPData;
+      IPBCTable_t *_IPData;
       bool _isMethodTracingEnabled;
       TR_OpaqueClassBlock * _owningClass;
       bool _isCompiledWhenProfiling; // To record if the method is compiled when doing Profiling
+      TR_IPMethodHashTableEntry *_methodIPEntry;
       }; // struct J9MethodInfo
 
    /**
@@ -349,6 +351,8 @@ class ClientSessionData
    TR::Monitor *getClassChainDataMapMonitor() { return _classChainDataMapMonitor; }
    TR_IPBytecodeHashTableEntry *getCachedIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byteCodeIndex, bool *methodInfoPresent);
    bool cacheIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byteCodeIndex, TR_IPBytecodeHashTableEntry *entry);
+   TR_IPMethodHashTableEntry *getCachedIProfilerMethodInfo(TR_OpaqueMethodBlock *method);
+   bool cacheIProfilerMethodInfo(TR_OpaqueMethodBlock *method, TR_IPMethodHashTableEntry *entry);
    VMInfo *getOrCacheVMInfo(JITServer::ServerStream *stream);
    void clearCaches(); // destroys _chTableClassMap, _romClassMap and _J9MethodMap
    TR_AddressSet& getUnloadedClassAddresses()

@@ -49,10 +49,10 @@ JITServerIProfiler::JITServerIProfiler(J9JITConfig *jitConfig)
    }
 
 TR_IPMethodHashTableEntry *
-JITServerIProfiler::deserializeMethodEntry(TR_ContiguousIPMethodHashTableEntry *serialEntry, TR_Memory *trMemory)
+JITServerIProfiler::deserializeMethodEntry(TR_ContiguousIPMethodHashTableEntry *serialEntry, TR_Memory *trMemory, TR_AllocationKind allocKind)
    {
-   // caching is done inside TR_ResolvedJ9JITServerMethod so we need to use heap memory.
-   TR_IPMethodHashTableEntry *entry = (TR_IPMethodHashTableEntry *) trMemory->allocateHeapMemory(sizeof(TR_IPMethodHashTableEntry));
+   // Caching is done either persistently or per-compilation
+   TR_IPMethodHashTableEntry *entry = (TR_IPMethodHashTableEntry *) trMemory->allocateMemory(sizeof(TR_IPMethodHashTableEntry), allocKind);
    if (entry)
       {
       memset(entry, 0, sizeof(TR_IPMethodHashTableEntry));
@@ -65,7 +65,7 @@ JITServerIProfiler::deserializeMethodEntry(TR_ContiguousIPMethodHashTableEntry *
          if (serialEntry->_callers[callerCount]._method == NULL)
             break;
 
-      TR_IPMethodData *callerStore = (TR_IPMethodData*) trMemory->allocateHeapMemory(callerCount * sizeof(TR_IPMethodData));
+      TR_IPMethodData *callerStore = (TR_IPMethodData*) trMemory->allocateMemory(callerCount * sizeof(TR_IPMethodData), allocKind);
       if (callerStore)
          {
          TR_IPMethodData *caller = &entry->_caller;
@@ -146,6 +146,15 @@ JITServerIProfiler::ipBytecodeHashTableEntryFactory(TR_IPBCDataStorageHeader *st
 TR_IPMethodHashTableEntry *
 JITServerIProfiler::searchForMethodSample(TR_OpaqueMethodBlock *omb, int32_t bucket)
    {
+   auto compInfoPT = (TR::CompilationInfoPerThreadRemote *)(TR::comp()->fej9()->_compInfoPT);
+   ClientSessionData *clientSessionData = compInfoPT->getClientData();
+   TR_IPMethodHashTableEntry *entry = NULL;
+   if (_useCaching)
+      {
+      // First, check the persistent cache
+      entry  = clientSessionData->getCachedIProfilerMethodInfo(omb);
+      if (entry) return entry;
+      }
    auto stream = TR::CompilationInfo::getStream();
    if (!stream)
       {
@@ -158,7 +167,7 @@ JITServerIProfiler::searchForMethodSample(TR_OpaqueMethodBlock *omb, int32_t buc
       return NULL;
       }
    const auto serialEntry = (TR_ContiguousIPMethodHashTableEntry*) &entryStr[0];
-   return deserializeMethodEntry(serialEntry, TR::comp()->trMemory());
+   return deserializeMethodEntry(serialEntry, TR::comp()->trMemory(), heapAlloc);
    }
 
 // This method is used to search only the hash table
@@ -206,10 +215,11 @@ JITServerIProfiler::profilingSample(TR_OpaqueMethodBlock *method, uint32_t byteC
          // Ask the client again and see if the two sources of information match
          auto stream = TR::CompilationInfo::getStream();
          stream->write(JITServer::MessageType::IProfiler_profilingSample, method, byteCodeIndex, (uintptr_t)1);
-         auto recv = stream->read<std::string, bool, bool>();
+         auto recv = stream->read<std::string, std::string, bool, bool>();
          const std::string ipdata = std::get<0>(recv);
-         bool wholeMethod = std::get<1>(recv); // indicates whether the client has sent info for entire method
-         bool usePersistentCache = std::get<2>(recv);
+         auto serialMethodEntry = std::get<1>(recv);
+         bool wholeMethod = std::get<2>(recv); // indicates whether the client has sent info for entire method
+         bool usePersistentCache = std::get<3>(recv);
          TR_ASSERT(!wholeMethod, "Client should not have sent whole method info");
          uintptr_t methodStart = TR::Compiler->mtd.bytecodeStart(method);
          TR_IPBCDataStorageHeader *clientData = ipdata.empty() ? NULL : (TR_IPBCDataStorageHeader *) &ipdata[0];
@@ -242,10 +252,11 @@ JITServerIProfiler::profilingSample(TR_OpaqueMethodBlock *method, uint32_t byteC
    //
    auto stream = TR::CompilationInfo::getStream();
    stream->write(JITServer::MessageType::IProfiler_profilingSample, method, byteCodeIndex, (uintptr_t)(_useCaching ? 0 : 1));
-   auto recv = stream->read<std::string, bool, bool>();
+   auto recv = stream->read<std::string, std::string, bool, bool>();
    const std::string ipdata = std::get<0>(recv);
-   bool wholeMethod = std::get<1>(recv); // indicates whether the client sent info for entire method
-   bool usePersistentCache = std::get<2>(recv); // indicates whether info can be saved in persistent memory, or only in heap memory
+   auto serialMethodEntry = reinterpret_cast<TR_ContiguousIPMethodHashTableEntry *>(&std::get<1>(recv)[0]);
+   bool wholeMethod = std::get<2>(recv); // indicates whether the client sent info for entire method
+   bool usePersistentCache = std::get<3>(recv); // indicates whether info can be saved in persistent memory, or only in heap memory
    _statsIProfilerInfoMsgToClient++;
 
    bool doCache = _useCaching && wholeMethod;
@@ -333,7 +344,19 @@ JITServerIProfiler::profilingSample(TR_OpaqueMethodBlock *method, uint32_t byteC
          entry = clientSessionData->getCachedIProfilerInfo(method, byteCodeIndex, &methodInfoPresent);
       else
          entry = compInfoPT->getCachedIProfilerInfo(method, byteCodeIndex, &methodInfoPresent);
-      } 
+
+      // In addition to caching bytecode entries for the method, also cache fan-in info here,
+      // to avoid asking client in the future
+      if (usePersistentCache)
+         {
+         TR_IPMethodHashTableEntry *methodEntry = deserializeMethodEntry(serialMethodEntry, comp->trMemory(), persistentAlloc);
+         clientSessionData->cacheIProfilerMethodInfo(method, methodEntry);
+         }
+      else
+         {
+         TR_IPMethodHashTableEntry *methodEntry = deserializeMethodEntry(serialMethodEntry, comp->trMemory(), heapAlloc);
+         }
+      }
    else // No caching
       {
       // Did the client sent an entire method? Such a waste
@@ -514,7 +537,7 @@ JITServerIProfiler::setCallCount(TR_OpaqueMethodBlock *method, int32_t bcIndex, 
       if (!methodInfoPresentInPersistent)
          entry = compInfoPT->getCachedIProfilerInfo(method, bcIndex, &methodInfoPresentInHeap);
 
-      // Note that methodInfoPresent means that a profiled method is in the map of (J9Method *) to (IPTable_t *),
+      // Note that methodInfoPresent means that a profiled method is in the map of (J9Method *) to (IPBCTable_t *),
       // it does not mean that an entry for a profiled bcIndex is cached.
       if (methodInfoPresentInPersistent || methodInfoPresentInHeap)
          {
@@ -760,6 +783,9 @@ JITClientIProfiler::serializeAndSendIProfileInfoForMethod(TR_OpaqueMethodBlock *
       // These profiling entries have been 'locked' so we must remember to unlock them
       bytesFootprint = walkILTreeForIProfilingEntries(pcEntries, numEntries, &bci, method, BCvisit, abort, comp);
 
+      // Get fan-in info for this method
+      std::string serialEntry = serializeIProfilerMethodEntry(method);
+
       if (numEntries && !abort)
          {
          // Serialize the entries
@@ -767,11 +793,11 @@ JITClientIProfiler::serializeAndSendIProfileInfoForMethod(TR_OpaqueMethodBlock *
          intptr_t writtenBytes = serializeIProfilerMethodEntries(pcEntries, numEntries, (uintptr_t)&buffer[0], methodStart);
          TR_ASSERT(writtenBytes == bytesFootprint, "BST doesn't match expected footprint");
          // send the information to the server
-         client->write(JITServer::MessageType::IProfiler_profilingSample, buffer, true, usePersistentCache);
+         client->write(JITServer::MessageType::IProfiler_profilingSample, buffer, serialEntry, true, usePersistentCache);
          }
       else if (!numEntries && !abort)// Empty IProfiler data for this method
          {
-         client->write(JITServer::MessageType::IProfiler_profilingSample, std::string(), true, usePersistentCache);
+         client->write(JITServer::MessageType::IProfiler_profilingSample, std::string(), serialEntry, true, usePersistentCache);
          }
 
       // release any entry that has been locked by us

@@ -152,7 +152,7 @@ ClientSessionData::processUnloadedClasses(JITServer::ServerStream *stream, const
             auto iter = _J9MethodMap.find(j9method);
             if (iter != _J9MethodMap.end())
                {
-               IPTable_t *ipDataHT = iter->second._IPData;
+               IPBCTable_t *ipDataHT = iter->second._IPData;
                if (ipDataHT)
                   {
                   for (auto& entryIt : *ipDataHT)
@@ -161,7 +161,7 @@ ClientSessionData::processUnloadedClasses(JITServer::ServerStream *stream, const
                      if (entryPtr)
                         jitPersistentFree(entryPtr);
                      }
-                  ipDataHT->~IPTable_t();
+                  ipDataHT->~IPBCTable_t();
                   jitPersistentFree(ipDataHT);
                   iter->second._IPData = NULL;
                   }
@@ -227,6 +227,27 @@ ClientSessionData::getCachedIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t
    return ipEntry;
    }
 
+TR_IPMethodHashTableEntry *
+ClientSessionData::getCachedIProfilerMethodInfo(TR_OpaqueMethodBlock *method)
+   {
+   TR_IPMethodHashTableEntry *entry = NULL;
+   OMR::CriticalSection getRemoteROMClass(getROMMapMonitor());
+   // check whether info about j9method is cached
+   auto & j9methodMap = getJ9MethodMap();
+   auto it = j9methodMap.find((J9Method*)method);
+   if (it != j9methodMap.end())
+      {
+      entry = it->second._methodIPEntry;
+      }
+   else
+      {
+      // Very unlikely scenario because the optimizer will have created  ResolvedJ9Method
+      // whose constructor would have fetched and cached the j9method info
+      TR_ASSERT(false, "profilingSample: asking about j9method=%p but this is not present in the J9MethodMap", method);
+      }
+   return entry;
+   }
+
 bool
 ClientSessionData::cacheIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byteCodeIndex, TR_IPBytecodeHashTableEntry *entry)
    {
@@ -236,7 +257,7 @@ ClientSessionData::cacheIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byt
    auto it = j9methodMap.find((J9Method*)method);
    if (it != j9methodMap.end())
       {
-      IPTable_t *iProfilerMap = it->second._IPData;
+      IPBCTable_t *iProfilerMap = it->second._IPData;
       if (!iProfilerMap)
          {
          // Check and update if method is compiled when collecting profiling data
@@ -245,7 +266,7 @@ ClientSessionData::cacheIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byt
             it->second._isCompiledWhenProfiling = true;
 
          // allocate a new iProfiler map
-         iProfilerMap = new (PERSISTENT_NEW) IPTable_t(IPTable_t::allocator_type(TR::Compiler->persistentAllocator()));
+         iProfilerMap = new (PERSISTENT_NEW) IPBCTable_t(IPBCTable_t::allocator_type(TR::Compiler->persistentAllocator()));
          if (iProfilerMap)
             {
             it->second._IPData = iProfilerMap;
@@ -261,6 +282,24 @@ ClientSessionData::cacheIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byt
             iProfilerMap->insert({ byteCodeIndex, entry });
          return true;
          }
+      }
+   else
+      {
+      // JITServer TODO: count how many times we cannot cache. There should be very few instances if at all.
+      }
+   return false; // false means that caching attempt failed
+   }
+
+bool
+ClientSessionData::cacheIProfilerMethodInfo(TR_OpaqueMethodBlock *method, TR_IPMethodHashTableEntry *entry)
+   {
+   OMR::CriticalSection getRemoteROMClass(getROMMapMonitor());
+   // check whether info about j9method exists
+   auto & j9methodMap = getJ9MethodMap();
+   auto it = j9methodMap.find((J9Method*)method);
+   if (it != j9methodMap.end())
+      {
+      it->second._methodIPEntry = entry;
       }
    else
       {
@@ -398,7 +437,7 @@ ClientSessionData::clearCaches()
    // Free memory for all hashtables with IProfiler info
    for (auto& it : _J9MethodMap)
       {
-      IPTable_t *ipDataHT = it.second._IPData;
+      IPBCTable_t *ipDataHT = it.second._IPData;
       // It it exists, walk the collection of <pc, TR_IPBytecodeHashTableEntry*> mappings
       if (ipDataHT)
          {
@@ -408,7 +447,7 @@ ClientSessionData::clearCaches()
             if (entryPtr)
                jitPersistentFree(entryPtr);
             }
-         ipDataHT->~IPTable_t();
+         ipDataHT->~IPBCTable_t();
          jitPersistentFree(ipDataHT);
          it.second._IPData = NULL;
          }
