@@ -222,7 +222,7 @@ JITServerHelpers::cacheRemoteROMClass(ClientSessionData *clientSessionData, J9Cl
    for (uint32_t i = 0; i < numMethods; i++)
       {
       clientSessionData->getJ9MethodMap().insert({&methods[i],
-            {romMethod, NULL, static_cast<bool>(methodTracingInfo[i]), (TR_OpaqueClassBlock *)clazz, false}});
+            {romMethod, NULL, static_cast<bool>(methodTracingInfo[i]), (TR_OpaqueClassBlock *)clazz, false, NULL}});
       romMethod = nextROMMethod(romMethod);
       }
    }

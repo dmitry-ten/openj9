@@ -124,6 +124,7 @@ TR::CompilationInfoPerThreadRemote::CompilationInfoPerThreadRemote(TR::Compilati
    _seqNo(0),
    _waitToBeNotified(false),
    _methodIPDataPerComp(NULL),
+   _methodIPMethodInfo(NULL),
    _resolvedMethodInfoMap(NULL),
    _resolvedMirrorMethodsPersistIPInfo(NULL),
    _classOfStaticMap(NULL),
@@ -752,7 +753,7 @@ TR::CompilationInfoPerThreadRemote::processEntry(TR_MethodToBeCompiled &entry, J
 bool
 TR::CompilationInfoPerThreadRemote::cacheIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byteCodeIndex, TR_IPBytecodeHashTableEntry *entry)
    {
-   IPTableHeapEntry *entryMap = NULL;
+   IPBCTableHeapEntry *entryMap = NULL;
    if(!getCachedValueFromPerCompilationMap(_methodIPDataPerComp, (J9Method *) method, entryMap))
       {
       // Either first time cacheIProfilerInfo called during current compilation,
@@ -782,14 +783,14 @@ TR::CompilationInfoPerThreadRemote::cacheIProfilerInfo(TR_OpaqueMethodBlock *met
  * @param method J9Method in question
  * @param byteCodeIndex bytecode in question
  * @param methodInfoPresent indicates to the caller whether the data is present
- * @return IPTableHeapEntry bytecode iprofile data
+ * @return IPBCTableHeapEntry bytecode iprofile data
  */
 TR_IPBytecodeHashTableEntry*
 TR::CompilationInfoPerThreadRemote::getCachedIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byteCodeIndex, bool *methodInfoPresent)
    {
    *methodInfoPresent = false;
 
-   IPTableHeapEntry *entryMap = NULL;
+   IPBCTableHeapEntry *entryMap = NULL;
    TR_IPBytecodeHashTableEntry *ipEntry = NULL;
 
    getCachedValueFromPerCompilationMap(_methodIPDataPerComp, (J9Method *) method, entryMap);
@@ -801,6 +802,20 @@ TR::CompilationInfoPerThreadRemote::getCachedIProfilerInfo(TR_OpaqueMethodBlock 
       getCachedValueFromPerCompilationMap(entryMap, byteCodeIndex, ipEntry);
       }
    return ipEntry;
+   }
+
+void
+TR::CompilationInfoPerThreadRemote::cacheIProfilerMethodInfo(TR_OpaqueMethodBlock *method, TR_IPMethodHashTableEntry *entry)
+   {
+   cacheToPerCompilationMap(_methodIPMethodInfo, method, entry);
+   }
+
+TR_IPMethodHashTableEntry *
+TR::CompilationInfoPerThreadRemote::getCachedIProfilerMethodInfo(TR_OpaqueMethodBlock *method)
+   {
+   TR_IPMethodHashTableEntry *entry = NULL;
+   getCachedValueFromPerCompilationMap(_methodIPMethodInfo, method, entry);
+   return entry;
    }
 
 /**
@@ -836,12 +851,6 @@ TR::CompilationInfoPerThreadRemote::cacheResolvedMethod(TR_ResolvedMethodKey key
       pMethodInfo = (TR_PersistentMethodInfo*) trMemory->allocateHeapMemory(sizeof(TR_PersistentMethodInfo), TR_MemoryBase::Recompilation);
       memcpy(pMethodInfo, std::get<2>(methodInfo).data(), sizeof(TR_PersistentMethodInfo));
       }
-   TR_ContiguousIPMethodHashTableEntry *entry = NULL;
-   if (!std::get<3>(methodInfo).empty())
-      {
-      entry = (TR_ContiguousIPMethodHashTableEntry*) trMemory->allocateHeapMemory(sizeof(TR_ContiguousIPMethodHashTableEntry), TR_MemoryBase::Recompilation);
-      memcpy(entry, std::get<3>(methodInfo).data(), sizeof(TR_ContiguousIPMethodHashTableEntry));
-      }
 
    TR_ResolvedMethodCacheEntry cacheEntry;
    cacheEntry.method = method;
@@ -849,7 +858,6 @@ TR::CompilationInfoPerThreadRemote::cacheResolvedMethod(TR_ResolvedMethodKey key
    cacheEntry.methodInfoStruct = std::get<0>(methodInfo);
    cacheEntry.persistentBodyInfo = bodyInfo;
    cacheEntry.persistentMethodInfo = pMethodInfo;
-   cacheEntry.IPMethodInfo = entry;
 
    cacheToPerCompilationMap(_resolvedMethodInfoMap, key, cacheEntry);
    }
@@ -886,8 +894,7 @@ TR::CompilationInfoPerThreadRemote::getCachedResolvedMethod(TR_ResolvedMethodKey
       auto methodInfoStruct = methodCacheEntry.methodInfoStruct;
       TR_ResolvedJ9JITServerMethodInfo methodInfo = make_tuple(methodInfoStruct, 
          methodCacheEntry.persistentBodyInfo ? std::string((const char*)methodCacheEntry.persistentBodyInfo, sizeof(TR_PersistentJittedBodyInfo)) : std::string(), 
-         methodCacheEntry.persistentMethodInfo ? std::string((const char*)methodCacheEntry.persistentMethodInfo, sizeof(TR_PersistentMethodInfo)) : std::string(), 
-         methodCacheEntry.IPMethodInfo ? std::string((const char*)methodCacheEntry.IPMethodInfo, sizeof(TR_ContiguousIPMethodHashTableEntry)) : std::string());
+         methodCacheEntry.persistentMethodInfo ? std::string((const char*)methodCacheEntry.persistentMethodInfo, sizeof(TR_PersistentMethodInfo)) : std::string());
       // Re-add validation record
       if (comp->compileRelocatableCode() && comp->getOption(TR_UseSymbolValidationManager) && !comp->getSymbolValidationManager()->inHeuristicRegion())
          {
@@ -1063,6 +1070,7 @@ void
 TR::CompilationInfoPerThreadRemote::clearPerCompilationCaches()
    {
    clearPerCompilationCache(_methodIPDataPerComp);
+   clearPerCompilationCache(_methodIPMethodInfo);
    clearPerCompilationCache(_resolvedMethodInfoMap);
    clearPerCompilationCache(_resolvedMirrorMethodsPersistIPInfo);
    clearPerCompilationCache(_classOfStaticMap);

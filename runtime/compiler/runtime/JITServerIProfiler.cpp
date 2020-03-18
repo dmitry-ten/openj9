@@ -49,7 +49,7 @@ JITServerIProfiler::JITServerIProfiler(J9JITConfig *jitConfig)
    }
 
 TR_IPMethodHashTableEntry *
-JITServerIProfiler::deserializeMethodEntry(TR_ContiguousIPMethodHashTableEntry *serialEntry, TR_Memory *trMemory, TR_AllocationKind allocKind)
+JITServerIProfiler::deserializeMethodEntry(const TR_ContiguousIPMethodHashTableEntry *serialEntry, TR_Memory *trMemory, TR_AllocationKind allocKind)
    {
    // Caching is done either persistently or per-compilation
    TR_IPMethodHashTableEntry *entry = (TR_IPMethodHashTableEntry *) trMemory->allocateMemory(sizeof(TR_IPMethodHashTableEntry), allocKind);
@@ -65,26 +65,29 @@ JITServerIProfiler::deserializeMethodEntry(TR_ContiguousIPMethodHashTableEntry *
          if (serialEntry->_callers[callerCount]._method == NULL)
             break;
 
-      TR_IPMethodData *callerStore = (TR_IPMethodData*) trMemory->allocateMemory(callerCount * sizeof(TR_IPMethodData), allocKind);
-      if (callerStore)
+      if (callerCount > 0)
          {
-         TR_IPMethodData *caller = &entry->_caller;
-         for (size_t i = 0; i < callerCount; i++)
+         TR_IPMethodData *callerStore = (TR_IPMethodData*) trMemory->allocateMemory((callerCount - 1) * sizeof(TR_IPMethodData), allocKind);
+         if (callerStore)
             {
-            auto &serialCaller = serialEntry->_callers[i];
-            TR_ASSERT(serialCaller._method, "callerCount was computed incorrectly");
-
-            if (i != 0)
+            TR_IPMethodData *caller = &entry->_caller;
+            for (size_t i = 0; i < callerCount; i++)
                {
-               TR_IPMethodData* newCaller = &callerStore[i];
-               caller->next = newCaller;
-               caller = newCaller;
-               }
+               auto &serialCaller = serialEntry->_callers[i];
+               TR_ASSERT(serialCaller._method, "callerCount was computed incorrectly");
 
-            caller->setMethod(serialCaller._method);
-            caller->setPCIndex(serialCaller._pcIndex);
-            caller->setWeight(serialCaller._weight);
-            caller->next = NULL;
+               if (i != 0)
+                  {
+                  TR_IPMethodData* newCaller = &callerStore[i - 1];
+                  caller->next = newCaller;
+                  caller = newCaller;
+                  }
+
+               caller->setMethod(serialCaller._method);
+               caller->setPCIndex(serialCaller._pcIndex);
+               caller->setWeight(serialCaller._weight);
+               caller->next = NULL;
+               }
             }
          }
       }
@@ -152,7 +155,12 @@ JITServerIProfiler::searchForMethodSample(TR_OpaqueMethodBlock *omb, int32_t buc
    if (_useCaching)
       {
       // First, check the persistent cache
-      entry  = clientSessionData->getCachedIProfilerMethodInfo(omb);
+      entry = clientSessionData->getCachedIProfilerMethodInfo(omb);
+      if (entry) return entry;
+
+      // Then, check per-compilation cache
+      entry = compInfoPT->getCachedIProfilerMethodInfo(omb);
+      // fprintf(stderr, "Found entry=%p for method %p\n", entry, omb);
       if (entry) return entry;
       }
    auto stream = TR::CompilationInfo::getStream();
@@ -161,13 +169,31 @@ JITServerIProfiler::searchForMethodSample(TR_OpaqueMethodBlock *omb, int32_t buc
       return NULL;
       }
    stream->write(JITServer::MessageType::IProfiler_searchForMethodSample, omb);
-   const std::string entryStr = std::get<0>(stream->read<std::string>());
+   auto recv = stream->read<std::string, bool>();
+   const std::string entryStr = std::get<0>(recv);
    if (entryStr.empty())
       {
       return NULL;
       }
-   const auto serialEntry = (TR_ContiguousIPMethodHashTableEntry*) &entryStr[0];
-   return deserializeMethodEntry(serialEntry, TR::comp()->trMemory(), heapAlloc);
+   const auto serialEntry = reinterpret_cast<const TR_ContiguousIPMethodHashTableEntry *>(&entryStr[0]);
+
+   // Cache the result
+   if (_useCaching)
+      {
+      bool usePersistentCache = std::get<1>(recv);
+      auto comp = compInfoPT->getCompilation();
+      if (usePersistentCache)
+         {
+         entry = deserializeMethodEntry(serialEntry, comp->trMemory(), persistentAlloc);
+         clientSessionData->cacheIProfilerMethodInfo(omb, entry);
+         }
+      else
+         {
+         entry = deserializeMethodEntry(serialEntry, comp->trMemory(), heapAlloc);
+         compInfoPT->cacheIProfilerMethodInfo(omb, entry);
+         }
+      }
+   return entry;
    }
 
 // This method is used to search only the hash table
@@ -254,7 +280,7 @@ JITServerIProfiler::profilingSample(TR_OpaqueMethodBlock *method, uint32_t byteC
    stream->write(JITServer::MessageType::IProfiler_profilingSample, method, byteCodeIndex, (uintptr_t)(_useCaching ? 0 : 1));
    auto recv = stream->read<std::string, std::string, bool, bool>();
    const std::string ipdata = std::get<0>(recv);
-   auto serialMethodEntry = reinterpret_cast<TR_ContiguousIPMethodHashTableEntry *>(&std::get<1>(recv)[0]);
+   const std::string serialMethodEntryStr = std::get<1>(recv);
    bool wholeMethod = std::get<2>(recv); // indicates whether the client sent info for entire method
    bool usePersistentCache = std::get<3>(recv); // indicates whether info can be saved in persistent memory, or only in heap memory
    _statsIProfilerInfoMsgToClient++;
@@ -347,14 +373,19 @@ JITServerIProfiler::profilingSample(TR_OpaqueMethodBlock *method, uint32_t byteC
 
       // In addition to caching bytecode entries for the method, also cache fan-in info here,
       // to avoid asking client in the future
-      if (usePersistentCache)
+      if (!serialMethodEntryStr.empty())
          {
-         TR_IPMethodHashTableEntry *methodEntry = deserializeMethodEntry(serialMethodEntry, comp->trMemory(), persistentAlloc);
-         clientSessionData->cacheIProfilerMethodInfo(method, methodEntry);
-         }
-      else
-         {
-         TR_IPMethodHashTableEntry *methodEntry = deserializeMethodEntry(serialMethodEntry, comp->trMemory(), heapAlloc);
+         const auto serialMethodEntry = reinterpret_cast<const TR_ContiguousIPMethodHashTableEntry *>(&serialMethodEntryStr[0]);
+         if (usePersistentCache)
+            {
+            TR_IPMethodHashTableEntry *methodEntry = deserializeMethodEntry(serialMethodEntry, comp->trMemory(), persistentAlloc);
+            clientSessionData->cacheIProfilerMethodInfo(method, methodEntry);
+            }
+         else
+            {
+            TR_IPMethodHashTableEntry *methodEntry = deserializeMethodEntry(serialMethodEntry, comp->trMemory(), heapAlloc);
+            compInfoPT->cacheIProfilerMethodInfo(method, methodEntry);
+            }
          }
       }
    else // No caching

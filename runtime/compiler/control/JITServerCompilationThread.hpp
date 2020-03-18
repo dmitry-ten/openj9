@@ -29,8 +29,9 @@
 
 class TR_IPBytecodeHashTableEntry;
 
-using IPTableHeapEntry = UnorderedMap<uint32_t, TR_IPBytecodeHashTableEntry*>;
-using IPTableHeap_t = UnorderedMap<J9Method *, IPTableHeapEntry *>;
+using IPBCTableHeapEntry = UnorderedMap<uint32_t, TR_IPBytecodeHashTableEntry*>;
+using IPBCTableHeap_t = UnorderedMap<J9Method *, IPBCTableHeapEntry *>;
+using IPMethodTableHeap_t = UnorderedMap<TR_OpaqueMethodBlock *, TR_IPMethodHashTableEntry *>;
 using ResolvedMirrorMethodsPersistIP_t = Vector<TR_ResolvedJ9Method *>;
 using ClassOfStatic_t = UnorderedMap<std::pair<TR_OpaqueClassBlock *, int32_t>, TR_OpaqueClassBlock *>;
 using FieldOrStaticAttrTable_t = UnorderedMap<std::pair<TR_OpaqueClassBlock *, int32_t>, TR_J9MethodFieldAttributes>;
@@ -59,6 +60,9 @@ class CompilationInfoPerThreadRemote : public TR::CompilationInfoPerThread
 
    bool cacheIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byteCodeIndex, TR_IPBytecodeHashTableEntry *entry);
    TR_IPBytecodeHashTableEntry *getCachedIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byteCodeIndex, bool *methodInfoPresent);
+
+   void cacheIProfilerMethodInfo(TR_OpaqueMethodBlock *method, TR_IPMethodHashTableEntry *entry);
+   TR_IPMethodHashTableEntry *getCachedIProfilerMethodInfo(TR_OpaqueMethodBlock *method);
 
    void cacheResolvedMethod(TR_ResolvedMethodKey key, TR_OpaqueMethodBlock *method, uint32_t vTableSlot, const TR_ResolvedJ9JITServerMethodInfo &methodInfo);
    bool getCachedResolvedMethod(TR_ResolvedMethodKey key, TR_ResolvedJ9JITServerMethod *owningMethod, TR_ResolvedMethod **resolvedMethod, bool *unresolvedInCP = NULL);
@@ -139,7 +143,8 @@ class CompilationInfoPerThreadRemote : public TR::CompilationInfoPerThread
    TR_PersistentMethodInfo *_recompilationMethodInfo;
    uint32_t _seqNo;
    bool _waitToBeNotified; // accessed with clientSession->_sequencingMonitor in hand
-   IPTableHeap_t *_methodIPDataPerComp;
+   IPBCTableHeap_t *_methodIPDataPerComp;
+   IPMethodTableHeap_t *_methodIPMethodInfo;
    TR_ResolvedMethodInfoCache *_resolvedMethodInfoMap;
    ResolvedMirrorMethodsPersistIP_t *_resolvedMirrorMethodsPersistIPInfo; //list of mirrors of resolved methods for persisting IProfiler info
    ClassOfStatic_t *_classOfStaticMap;

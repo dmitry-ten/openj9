@@ -50,8 +50,8 @@ TR_ResolvedJ9JITServerMethodInfoStruct
    };
 
 
-// The last 3 strings are serialized versions of jittedBodyInfo, persistentMethodInfo and TR_ContiguousIPMethodHashTableInfo
-using TR_ResolvedJ9JITServerMethodInfo = std::tuple<TR_ResolvedJ9JITServerMethodInfoStruct, std::string, std::string, std::string>;
+// The last 3 strings are serialized versions of jittedBodyInfo, persistentMethodInfo
+using TR_ResolvedJ9JITServerMethodInfo = std::tuple<TR_ResolvedJ9JITServerMethodInfoStruct, std::string, std::string>;
 
 // key used to identify a resolved method in resolved methods cache.
 // Since one cache contains different types of resolved methods, need to uniquely identify
@@ -117,7 +117,6 @@ TR_ResolvedMethodCacheEntry
    TR_ResolvedJ9JITServerMethodInfoStruct methodInfoStruct;
    TR_PersistentJittedBodyInfo *persistentBodyInfo;
    TR_PersistentMethodInfo *persistentMethodInfo;
-   TR_ContiguousIPMethodHashTableEntry *IPMethodInfo;
    };
 
 using TR_ResolvedMethodInfoCache = UnorderedMap<TR_ResolvedMethodKey, TR_ResolvedMethodCacheEntry>;
@@ -208,8 +207,8 @@ public:
    virtual void setClassForNewInstance(J9Class *c) override;
    virtual TR_OpaqueClassBlock * classOfMethod() override;
    virtual TR_PersistentJittedBodyInfo *getExistingJittedBodyInfo() override;
-   virtual void getFaninInfo(uint32_t *count, uint32_t *weight, uint32_t *otherBucketWeight = NULL) override;
-   virtual bool getCallerWeight(TR_ResolvedJ9Method *caller, uint32_t *weight, uint32_t pcIndex=~0) override;
+   // virtual void getFaninInfo(uint32_t *count, uint32_t *weight, uint32_t *otherBucketWeight = NULL) override;
+   // virtual bool getCallerWeight(TR_ResolvedJ9Method *caller, uint32_t *weight, uint32_t pcIndex=~0) override;
    virtual uint16_t archetypeArgPlaceholderSlot() override;
 
    TR_ResolvedJ9Method *getRemoteMirror() const { return _remoteMirror; }

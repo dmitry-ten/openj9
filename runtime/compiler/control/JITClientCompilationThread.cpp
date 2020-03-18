@@ -125,6 +125,7 @@ handler_IProfiler_profilingSample(JITServer::ClientStream *client, TR_J9VM *fe, 
    if (!wholeMethodInfo || abort) // Send information just for this entry
       {
       auto entry = iProfiler->profilingSample(method, bcIndex, comp, data, false);
+      std::string methodEntryStr = iProfiler->serializeIProfilerMethodEntry(method);
       if (entry && !entry->isInvalid())
          {
          uint32_t canPersist = entry->canBeSerialized(comp->getPersistentInfo()); // This may lock the entry
@@ -135,11 +136,11 @@ handler_IProfiler_profilingSample(JITServer::ClientStream *client, TR_J9VM *fe, 
             auto storage = (TR_IPBCDataStorageHeader*)&entryBytes[0];
             uintptr_t methodStartAddress = (uintptr_t)TR::Compiler->mtd.bytecodeStart(method);
             entry->serialize(methodStartAddress, storage, comp->getPersistentInfo());
-            client->write(JITServer::MessageType::IProfiler_profilingSample, entryBytes, false, usePersistentCache);
+            client->write(JITServer::MessageType::IProfiler_profilingSample, entryBytes, methodEntryStr, false, usePersistentCache);
             }
          else
             {
-            client->write(JITServer::MessageType::IProfiler_profilingSample, std::string(), false, usePersistentCache);
+            client->write(JITServer::MessageType::IProfiler_profilingSample, std::string(), methodEntryStr, false, usePersistentCache);
             }
          // Unlock the entry
          if (auto callGraphEntry = entry->asIPBCDataCallGraph())
@@ -148,7 +149,7 @@ handler_IProfiler_profilingSample(JITServer::ClientStream *client, TR_J9VM *fe, 
          }
       else // No valid info for specified bytecode index
          {
-         client->write(JITServer::MessageType::IProfiler_profilingSample, std::string(), false, usePersistentCache);
+         client->write(JITServer::MessageType::IProfiler_profilingSample, std::string(), methodEntryStr, false, usePersistentCache);
          }
       }
    }
@@ -2559,7 +2560,11 @@ handleServerMessage(JITServer::ClientStream *client, TR_J9VM *fe, JITServer::Mes
          auto recv = client->getRecvData<TR_OpaqueMethodBlock*>();
          auto method = std::get<0>(recv);
          JITClientIProfiler *iProfiler = (JITClientIProfiler *) fe->getIProfiler();
-         client->write(response, iProfiler->serializeIProfilerMethodEntry(method));
+         bool isCompiled = TR::CompilationInfo::isCompiled((J9Method*) method);
+         bool isInProgress = comp->getMethodBeingCompiled()->getPersistentIdentifier() == method;
+         // Used to tell the server if a profiled entry should be stored in persistent or heap memory
+         bool usePersistentCache = isCompiled || isInProgress;
+         client->write(response, iProfiler->serializeIProfilerMethodEntry(method), usePersistentCache);
          }
          break;
       case MessageType::IProfiler_profilingSample:

@@ -27,6 +27,7 @@
 #include "control/JITServerHelpers.hpp"
 #include "net/ServerStream.hpp" // for JITServer::ServerStream
 #include "runtime/RuntimeAssumptions.hpp" // for TR_AddressSet
+#include "runtime/IProfiler.hpp" //for TR_IPMethodData
 
 
 ClientSessionData::ClientSessionData(uint64_t clientUID, uint32_t seqNo) : 
@@ -450,6 +451,18 @@ ClientSessionData::clearCaches()
          ipDataHT->~IPBCTable_t();
          jitPersistentFree(ipDataHT);
          it.second._IPData = NULL;
+         }
+
+      // Free method data of all callers and the entry itself
+      TR_IPMethodHashTableEntry *entry = it.second._methodIPEntry;
+      if (entry)
+         {
+         TR_IPMethodData *caller = &entry->_caller;
+         if (caller->next) // all caller data after first is allocated in a different block
+            jitPersistentFree(caller->next);
+         
+         jitPersistentFree(entry);
+         it.second._methodIPEntry = NULL;
          }
       }
 

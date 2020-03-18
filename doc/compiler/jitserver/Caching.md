@@ -44,9 +44,9 @@ Most of the per-compilation caches are stored in `CompilationInfoPerThreadRemote
 Some important per-compilation caches:
 ### `TR_ResolvedMethodInfoCache`
 This cache stores pointers to resolved methods created for the current compilaton. It is important, because messages requesting the creation of resolved methods are some of the most frequent messages. Unfortunately, persistent caching does not seem possible, since every compilation creates its own resolved methods.
-### `IPTableHeap_t`
+### `IPBCTableHeap_t`
 This cache stores IProfiler data for methods whose profiling data might get updated. It is one of the two caches used by IProfiler.
-- Per-compilation cache: stores data for interpreted methods and a method currently being compiled. It is a nested hash table. The outer cache uses `IPTableHeap_t` hash table type, and takes `J9Method *` as a key. The inner table uses `IPTableHeapEntry`, and takes bytecode index as a key, and stores profiling data as a value.
+- Per-compilation cache: stores data for interpreted methods and a method currently being compiled. It is a nested hash table. The outer cache uses `IPBCTableHeap_t` hash table type, and takes `J9Method *` as a key. The inner table uses `IPBCTableHeapEntry`, and takes bytecode index as a key, and stores profiling data as a value.
 It is possible for this cache to contain outdated profiling data, because IProfiler might collect additional data on the client after we cache it. However, the lifetime of a compilation is pretty short, so using suboptimal profiling information does not affect performance.
 - Persistent cache: stores data for already compiled methods, because their interpreter profiling data will definitely not change.
 Uses a slightly different hash table type `IPBCTable_t`, because it's located inside entries of `J9MethodInfo`, so it only takes

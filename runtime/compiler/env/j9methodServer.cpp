@@ -1486,65 +1486,65 @@ TR_ResolvedJ9JITServerMethod::getExistingJittedBodyInfo()
    return _bodyInfo; // return cached value
    }
 
-void
-TR_ResolvedJ9JITServerMethod::getFaninInfo(uint32_t *count, uint32_t *weight, uint32_t *otherBucketWeight)
-   {
-   uint32_t i = 0;
-   uint32_t w = 0;
-   if (otherBucketWeight)
-      *otherBucketWeight = 0;
+// void
+// TR_ResolvedJ9JITServerMethod::getFaninInfo(uint32_t *count, uint32_t *weight, uint32_t *otherBucketWeight)
+   // {
+   // uint32_t i = 0;
+   // uint32_t w = 0;
+   // if (otherBucketWeight)
+      // *otherBucketWeight = 0;
 
-   TR_IPMethodHashTableEntry *entry = _iProfilerMethodEntry;
-   if (entry)
-      {
-      w = entry->_otherBucket.getWeight();
-      // Iterate through all the callers and add their weight
-      for (TR_IPMethodData* it = &entry->_caller; it; it = it->next)
-         {
-         w += it->getWeight();
-         i++;
-         }
-      if (otherBucketWeight)
-         *otherBucketWeight = entry->_otherBucket.getWeight();
-      }
-   *weight = w;
-   *count = i;
-   }
+   // TR_IPMethodHashTableEntry *entry = _iProfilerMethodEntry;
+   // if (entry)
+      // {
+      // w = entry->_otherBucket.getWeight();
+      // // Iterate through all the callers and add their weight
+      // for (TR_IPMethodData* it = &entry->_caller; it; it = it->next)
+         // {
+         // w += it->getWeight();
+         // i++;
+         // }
+      // if (otherBucketWeight)
+         // *otherBucketWeight = entry->_otherBucket.getWeight();
+      // }
+   // *weight = w;
+   // *count = i;
+   // }
 
-bool
-TR_ResolvedJ9JITServerMethod::getCallerWeight(TR_ResolvedJ9Method *caller, uint32_t *weight, uint32_t pcIndex)
-   {
-   TR_OpaqueMethodBlock *callerMethod = caller->getPersistentIdentifier();
-   bool useTuples = (pcIndex != ~0);
+// bool
+// TR_ResolvedJ9JITServerMethod::getCallerWeight(TR_ResolvedJ9Method *caller, uint32_t *weight, uint32_t pcIndex)
+   // {
+   // TR_OpaqueMethodBlock *callerMethod = caller->getPersistentIdentifier();
+   // bool useTuples = (pcIndex != ~0);
 
-   //adjust pcIndex for interface calls (see getSearchPCFromMethodAndBCIndex)
-   //otherwise we won't be able to locate a caller-callee-bcIndex triplet
-   //even if it is in a TR_IPMethodHashTableEntry
-   TR_IProfiler *iProfiler = _fe->getIProfiler();
-   if (!iProfiler)
-      return false;
+   // //adjust pcIndex for interface calls (see getSearchPCFromMethodAndBCIndex)
+   // //otherwise we won't be able to locate a caller-callee-bcIndex triplet
+   // //even if it is in a TR_IPMethodHashTableEntry
+   // TR_IProfiler *iProfiler = _fe->getIProfiler();
+   // if (!iProfiler)
+      // return false;
 
-   uintptr_t pcAddress = iProfiler->getSearchPCFromMethodAndBCIndex(callerMethod, pcIndex, 0);
+   // uintptr_t pcAddress = iProfiler->getSearchPCFromMethodAndBCIndex(callerMethod, pcIndex, 0);
 
-   TR_IPMethodHashTableEntry *entry = _iProfilerMethodEntry;
+   // TR_IPMethodHashTableEntry *entry = _iProfilerMethodEntry;
 
-   if(!entry)   // if there are no entries, we have no callers!
-      {
-      *weight = ~0;
-      return false;
-      }
-   for (TR_IPMethodData* it = &entry->_caller; it; it = it->next)
-      {
-      if( it->getMethod() == callerMethod && (!useTuples || ((((uintptr_t) it->getPCIndex()) + TR::Compiler->mtd.bytecodeStart(callerMethod)) == pcAddress)))
-         {
-         *weight = it->getWeight();
-         return true;
-         }
-      }
+   // if(!entry)   // if there are no entries, we have no callers!
+      // {
+      // *weight = ~0;
+      // return false;
+      // }
+   // for (TR_IPMethodData* it = &entry->_caller; it; it = it->next)
+      // {
+      // if( it->getMethod() == callerMethod && (!useTuples || ((((uintptr_t) it->getPCIndex()) + TR::Compiler->mtd.bytecodeStart(callerMethod)) == pcAddress)))
+         // {
+         // *weight = it->getWeight();
+         // return true;
+         // }
+      // }
 
-   *weight = entry->_otherBucket.getWeight();
-   return false;
-   }
+   // *weight = entry->_otherBucket.getWeight();
+   // return false;
+   // }
 
 void
 TR_ResolvedJ9JITServerMethod::createResolvedMethodMirror(TR_ResolvedJ9JITServerMethodInfo &methodInfo, TR_OpaqueMethodBlock *method, uint32_t vTableSlot, TR_ResolvedMethod *owningMethod, TR_FrontEnd *fe, TR_Memory *trMemory)
@@ -1685,8 +1685,8 @@ TR_ResolvedJ9JITServerMethod::packMethodInfo(TR_ResolvedJ9JITServerMethodInfo &m
 
    // set IP method data string.
    // fanin info is not used at cold opt level, so there is no point sending this information to the server
-   JITClientIProfiler *iProfiler = (JITClientIProfiler *)((TR_J9VMBase *) fe)->getIProfiler();
-   std::get<3>(methodInfo) = (comp && comp->getOptLevel() >= warm && iProfiler) ? iProfiler->serializeIProfilerMethodEntry(resolvedMethod->getPersistentIdentifier()) : std::string();
+   // JITClientIProfiler *iProfiler = (JITClientIProfiler *)((TR_J9VMBase *) fe)->getIProfiler();
+   // std::get<3>(methodInfo) = (comp && comp->getOptLevel() >= warm && iProfiler) ? iProfiler->serializeIProfilerMethodEntry(resolvedMethod->getPersistentIdentifier()) : std::string();
    }
 
 void
@@ -1740,10 +1740,10 @@ TR_ResolvedJ9JITServerMethod::unpackMethodInfo(TR_OpaqueMethodBlock * aMethod, T
    setMandatoryRecognizedMethod(mandatoryRm);
    setRecognizedMethod(rm);
 
-   JITServerIProfiler *iProfiler = (JITServerIProfiler *) ((TR_J9VMBase *) fe)->getIProfiler();
-   const std::string &entryStr = std::get<3>(methodInfo);
-   const auto serialEntry = (TR_ContiguousIPMethodHashTableEntry*) &entryStr[0];
-   _iProfilerMethodEntry = (iProfiler && !entryStr.empty()) ? iProfiler->deserializeMethodEntry(serialEntry, trMemory, heapAlloc) : NULL; 
+   // JITServerIProfiler *iProfiler = (JITServerIProfiler *) ((TR_J9VMBase *) fe)->getIProfiler();
+   // const std::string &entryStr = std::get<3>(methodInfo);
+   // const auto serialEntry = (TR_ContiguousIPMethodHashTableEntry*) &entryStr[0];
+   // _iProfilerMethodEntry = (iProfiler && !entryStr.empty()) ? iProfiler->deserializeMethodEntry(serialEntry, trMemory, heapAlloc) : NULL; 
    }
 
 bool
