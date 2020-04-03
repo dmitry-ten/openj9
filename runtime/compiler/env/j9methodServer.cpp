@@ -2043,10 +2043,20 @@ TR_ResolvedRelocatableJ9JITServerMethod::storeValidationRecordIfNecessary(TR::Co
    TR_AOTStats *aotStats = ((TR_JitPrivateConfig *)fej9->_jitConfig->privateConfig)->aotStats;
    bool isStatic = (reloKind == TR_ValidateStaticField);
 
+   if (!definingClass)
+      {
+      definingClass = TR_ResolvedJ9JITServerMethod::definingClassFromCPFieldRef(comp, cpIndex, isStatic);
+      }
+   if (!definingClass)
+      {
+      if (aotStats)
+         aotStats->numDefiningClassNotFound++;
+      return false;
+      }
+
    UDATA *classChain = NULL;
    auto clientData = _fe->_compInfoPT->getClientData();
    PersistentUnorderedMap<J9Class *, UDATA *> &classChainCache = clientData->getClassChainDataCache();
-   if (definingClass)
       {
       // if defining class is known, check if we already have a corresponding class chain cached
       OMR::CriticalSection classChainDataMapMonitor(clientData->getClassChainDataMapMonitor());
@@ -2077,12 +2087,6 @@ TR_ResolvedRelocatableJ9JITServerMethod::storeValidationRecordIfNecessary(TR::Co
          traceMsg(comp, "\tdefiningClass recomputed from cp as %p\n", definingClass);
          }
 
-      if (!definingClass)
-         {
-         if (aotStats)
-            aotStats->numDefiningClassNotFound++;
-         return false;
-         }
 
       J9UTF8 *className = J9ROMCLASS_CLASSNAME(TR::Compiler->cls.romClassOf((TR_OpaqueClassBlock *) definingClass));
       traceMsg(comp, "\tdefiningClass name %.*s\n", J9UTF8_LENGTH(className), J9UTF8_DATA(className));
