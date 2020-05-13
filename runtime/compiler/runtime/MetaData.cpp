@@ -1086,6 +1086,7 @@ static int32_t calculateExceptionsSize(
    return exceptionsSize;
    }
 
+
 static void
 populateBodyInfo(
       TR::Compilation *comp,
@@ -1110,8 +1111,31 @@ populateBodyInfo(
          // Later, we should probably reconsider what the structure for this whole method is and where it all belongs.
          //
          bool retryCompilation = false;
+         TR_PersistentJittedBodyInfo *bodyInfoSrc = recompInfo->getJittedBodyInfo();
+         TR_PersistentMethodInfo *methodInfoSrc = recompInfo->getMethodInfo();
+         TR_PersistentProfileInfo *recentProfileInfo = methodInfoSrc->getRecentProfileInfo();
+         TR_PersistentProfileInfo *bestProfileInfo = methodInfoSrc->getBestProfileInfo();
+         TR_Serializer serializer = {};
          uint32_t bytesAllocated = 0;
          uint32_t bytesRequested = sizeof(TR_PersistentMethodInfo) + sizeof(TR_PersistentJittedBodyInfo);
+         uint32_t recentProfileInfoSize = 0;
+         uint32_t bestProfileInfoSize = 0;
+
+	 if (recentProfileInfo)
+            {
+            serializer.accumulateSize(*recentProfileInfo);
+	    recentProfileInfoSize = serializer.getSize();
+            bytesRequested += sizeof(uint32_t) + recentProfileInfoSize; // sizeof(uin32_t) to store the size of persistent profile info
+
+            if ((NULL != bestProfileInfo) && (bestProfileInfo != recentProfileInfo))
+               {
+               serializer.reset();
+               serializer.accumulateSize(*bestProfileInfo);
+               bestProfileInfoSize = serializer.getSize();
+               bytesRequested += sizeof(uint32_t) + bestProfileInfoSize; // sizeof(uin32_t) to store the size of persistent profile info
+               }
+            }
+
          uint8_t *persistentInfo = vm->allocateDataCacheRecord(
             bytesRequested,
             comp,
@@ -1135,8 +1159,6 @@ populateBodyInfo(
          uint8_t *locationPersistentJittedBodyInfo = persistentInfo; // AOT data cache allocations should already be pointer aligned.
          uint8_t *locationPersistentMethodInfo = persistentInfo + sizeof(TR_PersistentJittedBodyInfo);
 
-         TR_PersistentJittedBodyInfo *bodyInfoSrc = recompInfo->getJittedBodyInfo();
-         TR_PersistentMethodInfo *methodInfoSrc = recompInfo->getMethodInfo();
          methodInfoSrc->setIsInDataCache(true);
          bodyInfoSrc->setIsRemoteCompileBody(true);
          data->bodyInfo = locationPersistentJittedBodyInfo;
@@ -1149,6 +1171,22 @@ populateBodyInfo(
          memcpy(locationPersistentMethodInfo, methodInfoSrc, sizeof(TR_PersistentMethodInfo));
          recompInfo->setMethodInfo((TR_PersistentMethodInfo *)locationPersistentMethodInfo);
          newBodyInfo->setMethodInfo((TR_PersistentMethodInfo *)locationPersistentMethodInfo);
+
+         if (recentProfileInfo)
+            {
+            uint32_t *locationProfileInfoSize = (uint32_t *)(locationPersistentMethodInfo + sizeof(TR_PersistentMethodInfo));
+            *locationProfileInfoSize = recentProfileInfoSize;
+            serializer.setMemoryBuffer((uint8_t *)(locationProfileInfoSize + 1), recentProfileInfoSize);
+            recentProfileInfo->serialize(serializer);
+
+            if ((NULL != bestProfileInfo) && (bestProfileInfo != recentProfileInfo))
+               {
+               locationProfileInfoSize = (uint32_t *)((uint8_t *)(locationProfileInfoSize + 1) + recentProfileInfoSize);
+               *locationProfileInfoSize = bestProfileInfoSize;
+               serializer.setMemoryBuffer((uint8_t *)(locationProfileInfoSize + 1), bestProfileInfoSize);
+               bestProfileInfo->serialize(serializer);
+               }
+            }
 
          J9JITDataCacheHeader *aotMethodHeader = (J9JITDataCacheHeader *)comp->getAotMethodDataStart();
          TR_AOTMethodHeader *aotMethodHeaderEntry =  (TR_AOTMethodHeader *)(aotMethodHeader + 1);

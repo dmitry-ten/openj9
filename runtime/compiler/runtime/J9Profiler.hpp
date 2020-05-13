@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -63,7 +63,7 @@ class TR_PersistentMethodInfo;
 struct TR_ByteCodeInfo;
 struct TR_InlinedCallSite;
 template <typename ListKind> class List;
-
+class TR_Serializer;
 
 //////////////////////////
 // PersistentProfileInfos
@@ -130,6 +130,9 @@ class TR_PersistentProfileInfo
          }
       }
 
+   // Constructor for creating TR_PersistentProfileInfo from serialized data
+   TR_PersistentProfileInfo(TR_Serializer &serializer);
+
    ~TR_PersistentProfileInfo();
 
    static TR_PersistentProfileInfo * get(TR::Compilation *comp);
@@ -174,8 +177,15 @@ class TR_PersistentProfileInfo
 
    void dumpInfo(TR::FILE *);
 
-   private:
+   void getSerializedSize(TR_Serializer &serializer) const;
+   void serialize(TR_Serializer &serializer) const;
 
+   static TR_PersistentProfileInfo * deserialize(TR_Serializer &serializer)
+      {
+      return new (PERSISTENT_NEW) TR_PersistentProfileInfo(serializer);
+      }
+
+   private:
    void prepareForProfiling(TR::Compilation *comp);
 
    // Forms a linked list, managed by TR_JProfilerThread
@@ -422,6 +432,7 @@ class TR_ValueProfileInfo
    TR_PERSISTENT_ALLOC(TR_Memory::ValueProfileInfo)
 
    TR_ValueProfileInfo(TR_CallSiteInfo *info);
+
    ~TR_ValueProfileInfo();
 
    static inline TR_ValueProfileInfo * get(TR_PersistentProfileInfo * profileInfo);
@@ -612,6 +623,9 @@ private:
    uint32_t _initialBlockFrequency;
    };
 
+// To be used for checking if _counterDerivationInfo[i] is a bit vector or not
+#define IS_VALID_BIT_VECTOR(cdi) (!((uintptr_t)cdi & 0x1))
+
 class TR_BlockFrequencyInfo
    {
    public:
@@ -621,6 +635,9 @@ class TR_BlockFrequencyInfo
    TR_BlockFrequencyInfo(TR::Compilation *comp, TR_AllocationKind allocKind);
 
    TR_BlockFrequencyInfo(TR_CallSiteInfo *callSiteInfo, int32_t numBlocks, TR_ByteCodeInfo *blocks, int32_t *frequencies);
+
+   // Constructor for creating TR_BlockFrequencyInfo from serialized data
+   TR_BlockFrequencyInfo(TR_Serializer &serializer, TR_PersistentProfileInfo *currentProfile);
 
    ~TR_BlockFrequencyInfo();
 
@@ -639,6 +656,7 @@ class TR_BlockFrequencyInfo
    static void    enableJProfilingRecompilation() { _enableJProfilingRecompilation = -1; }
    void setIsQueuedForRecompilation() { _isQueuedForRecompilation = -1; }
    int32_t *getIsQueuedForRecompilation() { return &_isQueuedForRecompilation; }
+   void setCallSiteInfo(TR_CallSiteInfo *callSiteInfo) { _callSiteInfo = callSiteInfo; }
 
    TR::Node* generateBlockRawCountCalculationSubTree(TR::Compilation *comp, int32_t blockNumber, TR::Node *node);
    TR::Node* generateBlockRawCountCalculationSubTree(TR::Compilation *comp, TR::Node *node, bool trace);
@@ -647,7 +665,13 @@ class TR_BlockFrequencyInfo
    int32_t getCallCount();
    int32_t getMaxRawCount(int32_t callerIndex);
    int32_t getMaxRawCount();
+
+   void getSerializedSize(TR_Serializer &serializer) const;
+   void serialize(TR_Serializer &serializer) const;
+   static TR_BlockFrequencyInfo * deserialize(TR_Serializer &serializer);
+
    private:
+
    int32_t getRawCount(TR::ResolvedMethodSymbol *resolvedMethod, TR_ByteCodeInfo &bci, TR_CallSiteInfo *callSiteInfo, int64_t maxCount, TR::Compilation *comp);
    int32_t getRawCount(TR_ByteCodeInfo &bci, TR_CallSiteInfo *callSiteInfo, int64_t maxCount, TR::Compilation *comp);
    int32_t getOriginalBlockNumberToGetRawCount(TR_ByteCodeInfo &bci, TR::Compilation *comp, bool trace);
@@ -738,6 +762,8 @@ class TR_CallSiteInfo
    TR_ALLOC(TR_Memory::CallSiteInfo)
 
    TR_CallSiteInfo(TR::Compilation * comp, TR_AllocationKind allocKind);
+   TR_CallSiteInfo(uint32_t numCallSites, TR_InlinedCallSite * callSites);
+   TR_CallSiteInfo(TR_Serializer &serializer);
    ~TR_CallSiteInfo();
 
    static inline TR_CallSiteInfo * get(TR_PersistentProfileInfo * profileInfo);
@@ -752,6 +778,10 @@ class TR_CallSiteInfo
    TR_OpaqueMethodBlock *inlinedMethod(TR_ByteCodeInfo & persistentByteCodeInfo, TR::Compilation *comp);
 
    void dumpInfo(TR::FILE *);
+
+   void getSerializedSize(TR_Serializer &serializer);
+   void serialize(TR_Serializer &serializer);
+   static TR_CallSiteInfo * deserialize(TR_Serializer &serializer);
 
    private:
 

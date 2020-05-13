@@ -1700,6 +1700,50 @@ TR_BlockFrequencyInfo::TR_BlockFrequencyInfo(
       }
    }
 
+TR_BlockFrequencyInfo::TR_BlockFrequencyInfo(TR_Serializer &serializer, TR_PersistentProfileInfo *currentProfile) :
+   _callSiteInfo(currentProfile->getCallSiteInfo()),
+   _numBlocks(serializer.read<int32_t>()),
+   _blocks(
+      _numBlocks ?
+      new (PERSISTENT_NEW) TR_ByteCodeInfo[_numBlocks] :
+      0
+      ),
+   _frequencies(
+      _numBlocks ?
+      /*
+       * The explicit parens value initialize the array,
+       * which in turn value initializes each array member,
+       * which for ints is zero initialization.
+       */
+      new (PERSISTENT_NEW) int32_t[_numBlocks]() :
+      NULL
+      ),
+   _counterDerivationInfo(NULL),
+   _entryBlockNumber(-1),
+   _isQueuedForRecompilation(0)
+   {
+   if (_numBlocks)
+      {
+      serializer.readArray(_blocks, _numBlocks);
+      serializer.readArray(_frequencies, _numBlocks);
+
+      _counterDerivationInfo = (TR_BitVector**) new (PERSISTENT_NEW) void**[_numBlocks*2]();
+      for (int32_t i = 0; i < (_numBlocks * 2); i++)
+         {
+         uintptr_t counterDerivationInfo = serializer.read<uintptr_t>();
+
+         if (counterDerivationInfo && IS_VALID_BIT_VECTOR(counterDerivationInfo))
+            {
+            _counterDerivationInfo[i] = new (PERSISTENT_NEW) TR_BitVector(serializer);
+            }
+         else
+            {
+            _counterDerivationInfo[i] = reinterpret_cast<TR_BitVector *>(counterDerivationInfo);
+            }
+         }
+      }
+   }
+
 TR_BlockFrequencyInfo::~TR_BlockFrequencyInfo()
    {
    _callSiteInfo = NULL;
@@ -2274,9 +2318,49 @@ int32_t TR_BlockFrequencyInfo::getMaxRawCount()
    return maxCount;
    }
 
+void TR_BlockFrequencyInfo::getSerializedSize(TR_Serializer &serializer) const
+   {
+   serializer.addSize(_numBlocks);
+   if (_numBlocks > 0)
+      {
+      serializer.addArraySize(_blocks, _numBlocks);
+      serializer.addArraySize(_frequencies, _numBlocks);
+      serializer.addArraySize(_counterDerivationInfo, _numBlocks * 2);
+      for (int32_t i = 0; i < (_numBlocks * 2); i++)
+         {
+         if (_counterDerivationInfo[i] && IS_VALID_BIT_VECTOR(_counterDerivationInfo[i]))
+            {
+            serializer.accumulateSize(*(_counterDerivationInfo[i]));
+            }
+         }
+      }
+   }
+
+void TR_BlockFrequencyInfo::serialize(TR_Serializer &serializer) const
+   {
+   serializer.write(_numBlocks);
+   if (_numBlocks)
+      {
+      serializer.writeArray(_blocks, _numBlocks);
+      serializer.writeArray(_frequencies, _numBlocks);
+      for (int32_t i = 0; i < (_numBlocks * 2); i++)
+         {
+         serializer.write(_counterDerivationInfo[i]);
+         if (_counterDerivationInfo[i] && IS_VALID_BIT_VECTOR(_counterDerivationInfo[i]))
+            {
+            // write the bit vector
+	    _counterDerivationInfo[i]->serialize(serializer);
+            }
+         }
+      }
+   }
+
+TR_BlockFrequencyInfo * TR_BlockFrequencyInfo::deserialize(TR_Serializer &serializer)
+   {
+   return new (PERSISTENT_NEW) TR_BlockFrequencyInfo(serializer);
+   }
 
 const uint32_t TR_CatchBlockProfileInfo::EDOThreshold = 50;
-
 
 TR_CallSiteInfo::TR_CallSiteInfo(TR::Compilation * comp, TR_AllocationKind allocKind) :
    _numCallSites(comp->getNumInlinedCallSites()),
@@ -2289,6 +2373,34 @@ TR_CallSiteInfo::TR_CallSiteInfo(TR::Compilation * comp, TR_AllocationKind alloc
    {
    for (uint32_t i = 0; i < _numCallSites; ++i)
       _callSites[i] = comp->getInlinedCallSite(i);
+   }
+
+TR_CallSiteInfo::TR_CallSiteInfo(uint32_t numCallSites, TR_InlinedCallSite * callSites) :
+   _numCallSites(numCallSites),
+   _callSites(
+      _numCallSites ?
+      new (PERSISTENT_NEW) TR_InlinedCallSite[_numCallSites] :
+      NULL
+      ),
+   _allocKind(persistentAlloc)
+   {
+   for (uint32_t i = 0; i < _numCallSites; ++i)
+      _callSites[i] = callSites[i];
+   }
+
+TR_CallSiteInfo::TR_CallSiteInfo(TR_Serializer &serializer) :
+   _numCallSites(serializer.read<size_t>()),
+   _callSites(
+      _numCallSites ?
+      new (PERSISTENT_NEW) TR_InlinedCallSite[_numCallSites] :
+      NULL
+      ),
+   _allocKind(persistentAlloc)
+   {
+   if (_numCallSites > 0)
+      {
+      serializer.readArray(_callSites, _numCallSites);
+      }
    }
 
 TR_CallSiteInfo::~TR_CallSiteInfo()
@@ -2420,6 +2532,27 @@ TR_CallSiteInfo::hasSamePartialBytecodeInfo(
       }
 
    return matchLevelCount;
+   }
+
+TR_PersistentProfileInfo::TR_PersistentProfileInfo(TR_Serializer &serializer) :
+   _next(NULL),
+   _active(true),
+   _refCount(1)
+   {
+   _callSiteInfo = serializer.nextDataNotNullPointer() ? TR_CallSiteInfo::deserialize(serializer) : NULL;
+   _blockFrequencyInfo = serializer.nextDataNotNullPointer() ? TR_BlockFrequencyInfo::deserialize(serializer, this) : NULL;
+   if (serializer.nextDataNotNullPointer())
+      {
+      TR_ASSERT(0, "valueProfileInfo pointer should be NULL\n");
+      }
+   else
+      {
+      _valueProfileInfo = NULL;
+      }
+
+   // these two are not required
+   memset(_profilingFrequency, 0, sizeof(_profilingFrequency));
+   memset(_profilingCount, 0, sizeof(_profilingCount));
    }
 
 TR_PersistentProfileInfo::~TR_PersistentProfileInfo()
@@ -2631,6 +2764,29 @@ void TR_CallSiteInfo::dumpInfo(TR::FILE *logFile)
       trfprintf(logFile, "   Call site index = %d, method = %p, parent = %d\n", _callSites[i]._byteCodeInfo.getByteCodeIndex(), _callSites[i]._methodInfo, _callSites[i]._byteCodeInfo.getCallerIndex());
    }
 
+void TR_CallSiteInfo::getSerializedSize(TR_Serializer &serializer)
+   {
+   serializer.addSize(_numCallSites);
+   if (_numCallSites > 0)
+      {
+      serializer.addArraySize(_callSites, _numCallSites);
+      }
+   }
+
+void TR_CallSiteInfo::serialize(TR_Serializer &serializer)
+   {
+   serializer.write(_numCallSites);
+   if (_numCallSites > 0)
+      {
+      serializer.writeArray(_callSites, _numCallSites);
+      }
+   }
+
+TR_CallSiteInfo * TR_CallSiteInfo::deserialize(TR_Serializer &serializer)
+   {
+   // Create a new persistent call site info
+   return new (PERSISTENT_NEW) TR_CallSiteInfo(serializer);
+   }
 
 void TR_PersistentProfileInfo::dumpInfo(TR::FILE *logFile)
    {
@@ -2646,6 +2802,38 @@ void TR_PersistentProfileInfo::dumpInfo(TR::FILE *logFile)
    if (_valueProfileInfo)
       _valueProfileInfo->dumpInfo(logFile);
    }
+
+void TR_PersistentProfileInfo::getSerializedSize(TR_Serializer &serializer) const
+   {
+   serializer.addSize(_callSiteInfo, _blockFrequencyInfo, _valueProfileInfo);
+   if (_callSiteInfo)
+      {
+      serializer.accumulateSize(*_callSiteInfo);
+      }
+   if (_blockFrequencyInfo)
+      {
+      serializer.accumulateSize(*_blockFrequencyInfo);
+      }
+   }
+
+void TR_PersistentProfileInfo::serialize(TR_Serializer &serializer) const
+   {
+   serializer.write(_callSiteInfo);
+   if (_callSiteInfo)
+      {
+      _callSiteInfo->serialize(serializer);
+      }
+   /* currently valueProfileInfo is not serialized, just write 0 for that */
+   serializer.write(_blockFrequencyInfo);
+   if (_blockFrequencyInfo)
+      {
+      _blockFrequencyInfo->serialize(serializer);
+      }
+   /* currently valueProfileInfo is not serialized, just write NULL for that */
+   TR_ValueProfileInfo *valueProfileInfo = NULL;
+   serializer.write(valueProfileInfo);
+   }
+
 
 TR_AccessedProfileInfo::TR_AccessedProfileInfo(TR::Region &region) :
     _usedInfo((InfoMapComparator()), (InfoMapAllocator(region))),

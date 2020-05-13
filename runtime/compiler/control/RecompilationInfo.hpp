@@ -83,6 +83,7 @@ class TR_PersistentMethodInfo
    friend class TR_DebugExt;
    friend class TR::DefaultCompilationStrategy;
    friend class TR::ThresholdCompilationStrategy;
+   friend class TR_RelocationRuntime;
 
    public:
    TR_PERSISTENT_ALLOC(TR_Memory::PersistentMethodInfo);

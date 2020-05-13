@@ -717,7 +717,55 @@ TR_RelocationRuntime::relocateMethodMetaData(UDATA codeRelocationAmount, UDATA d
          {
          persistentBodyInfo->setMethodInfo(persistentMethodInfo);
          }
+
+      TR_PersistentMethodInfo *methodInfo = persistentBodyInfo->getMethodInfo();
+      /*
+       * Cannot use TR_PersistentMethodInfo::getRecentProfileInfo() as it tries to access
+       * TR_PersistentMethodInfo::_recentProfileInfo which is an invalid pointer when loading AOT body
+       * obtained from SCC or from JIT server
+       */
+      if (NULL != methodInfo->_recentProfileInfo)
+         {
+         uint32_t size = *(uint32_t *)(persistentMethodInfo + 1);
+         TR_Serializer serializer((uint8_t *)(persistentMethodInfo + 1) + sizeof(uint32_t), size);
+         TR_PersistentProfileInfo *profileInfo = TR_PersistentProfileInfo::deserialize(serializer);
+         persistentBodyInfo->setProfileInfo(profileInfo);
+         methodInfo->_recentProfileInfo = profileInfo;
+         TR_PersistentProfileInfo::incRefCount(profileInfo);
+
+         // If running with the profiling thread, add profileInfo to its list
+         if (!TR::Options::getCmdLineOptions()->getOption(TR_DisableJProfilerThread))
+            {
+            TR::CompilationInfo::get(NULL)->getJProfilerThread()->addProfileInfo(profileInfo);
+            }
+         }
+
+      /*
+       * Cannot use TR_PersistentMethodInfo::getBestProfileInfo() as it tries to access
+       * TR_PersistentMethodInfo::_bestProfileInfo which is an invalid pointer when loading AOT body
+       * obtained from SCC or from JIT server
+       */
+      if (NULL != methodInfo->_bestProfileInfo)
+         {
+         uint32_t size = *(uint32_t *)(persistentMethodInfo + 1);
+         TR_Serializer serializer((uint8_t *)(persistentMethodInfo + 1) + sizeof(uint32_t), size);
+         TR_PersistentProfileInfo *profileInfo = TR_PersistentProfileInfo::deserialize(serializer);
+         methodInfo->_bestProfileInfo = profileInfo;
+         TR_PersistentProfileInfo::incRefCount(profileInfo);
+
+         // If running with the profiling thread, add profileInfo to its list
+         if (!TR::Options::getCmdLineOptions()->getOption(TR_DisableJProfilerThread))
+            {
+            TR::CompilationInfo::get(NULL)->getJProfilerThread()->addProfileInfo(profileInfo);
+            }
+         }
       _exceptionTable->bodyInfo = (void *)(persistentBodyInfo);
+      TR::Recompilation *recompInfo = comp()->getRecompilationInfo();
+      if (recompInfo)
+         {
+         recompInfo->setJittedBodyInfo(persistentBodyInfo);
+         recompInfo->setMethodInfo(persistentBodyInfo->getMethodInfo());
+         }
       }
 
    if (getPersistentInfo()->isRuntimeInstrumentationEnabled() &&
