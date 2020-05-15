@@ -87,10 +87,14 @@ struct TR_RelocationRecordValidateArbitraryClassBinaryTemplate : public TR_Reloc
    UDATA _classChainOffsetForClassBeingValidated;
    };
 
-
 struct TR_RelocationRecordWithOffsetBinaryTemplate : public TR_RelocationRecordBinaryTemplate
    {
    UDATA _offset;
+   };
+
+struct TR_RelocationRecordBlockFrequencyBinaryTemplate: public TR_RelocationRecordBinaryTemplate
+   {
+   uintptr_t _frequencyOffset;
    };
 
 struct TR_RelocationRecordConstantPoolBinaryTemplate : public TR_RelocationRecordWithInlinedSiteIndexBinaryTemplate

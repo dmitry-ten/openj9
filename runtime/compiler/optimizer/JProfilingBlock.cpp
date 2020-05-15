@@ -989,6 +989,8 @@ int32_t TR_JProfilingBlock::perform()
 
       // add the actual counter to the block
       TR::SymbolReference *symRef = comp()->getSymRefTab()->createKnownStaticDataSymbolRef(blockFrequencyInfo->getFrequencyForBlock(block->getNumber()), TR::Int32);
+      symRef->getSymbol()->setIsBlockFrequency();
+      symRef->getSymbol()->setNotDataAddress();
       TR::TreeTop *tree = TR::TreeTop::createIncTree(comp(), block->getEntry()->getNode(), symRef, 1);
       tree->getNode()->setIsProfilingCode();
       block->prepend(tree);

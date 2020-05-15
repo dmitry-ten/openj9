@@ -71,6 +71,7 @@ public:
    void setIsProfilingCompilation(bool v) { _bodyInfo->setIsProfilingBody(v); }
 
    TR_PersistentProfileInfo *findOrCreateProfileInfo();
+   TR_PersistentProfileInfo *getProfileInfo();
 
    bool useSampling() {return _useSampling;}
 

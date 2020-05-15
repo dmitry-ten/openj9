@@ -352,6 +352,8 @@ void TR_BlockFrequencyProfiler::modifyTrees()
          //
          TR::Node *storeNode;
          TR::SymbolReference *symRef = comp()->getSymRefTab()->createKnownStaticDataSymbolRef(blockFrequencyInfo->getFrequencyForBlock(node->getBlock()->getNumber()), TR::Int32);
+         symRef->getSymbol()->setIsBlockFrequency();
+         symRef->getSymbol()->setNotDataAddress();
          treeTop = TR::TreeTop::createIncTree(comp(), node, symRef, 1, treeTop);
          storeNode = treeTop->getNode();
 
@@ -2038,6 +2040,8 @@ TR_BlockFrequencyInfo::generateBlockRawCountCalculationSubTree(TR::Compilation *
       if (((uintptr_t)_counterDerivationInfo[blockNumber * 2]) & 0x1 == 1)
          {
          TR::SymbolReference *symRef = comp->getSymRefTab()->createKnownStaticDataSymbolRef(getFrequencyForBlock(((uintptr_t)_counterDerivationInfo[blockNumber * 2]) >> 1), TR::Int32);
+         symRef->getSymbol()->setIsBlockFrequency();
+         symRef->getSymbol()->setNotDataAddress();
          addRoot = TR::Node::createWithSymRef(node, TR::iload, 0, symRef);
          }
       else
@@ -2046,6 +2050,8 @@ TR_BlockFrequencyInfo::generateBlockRawCountCalculationSubTree(TR::Compilation *
          while (addBVI.hasMoreElements())
             {
             TR::SymbolReference *symRef = comp->getSymRefTab()->createKnownStaticDataSymbolRef(getFrequencyForBlock(addBVI.getNextElement()), TR::Int32);
+            symRef->getSymbol()->setIsBlockFrequency();
+            symRef->getSymbol()->setNotDataAddress();
             TR::Node *counterLoad = TR::Node::createWithSymRef(node, TR::iload, 0, symRef);
             if (addRoot)
                addRoot = TR::Node::create(node, TR::iadd, 2, addRoot, counterLoad);
@@ -2059,6 +2065,8 @@ TR_BlockFrequencyInfo::generateBlockRawCountCalculationSubTree(TR::Compilation *
          if (((uintptr_t)_counterDerivationInfo[blockNumber *2 + 1]) & 0x1 == 1)
             {
             TR::SymbolReference *symRef = comp->getSymRefTab()->createKnownStaticDataSymbolRef(getFrequencyForBlock(((uintptr_t)_counterDerivationInfo[blockNumber * 2 + 1]) >> 1), TR::Int32);
+            symRef->getSymbol()->setIsBlockFrequency();
+            symRef->getSymbol()->setNotDataAddress();
             subRoot = TR::Node::createWithSymRef(node, TR::iload, 0, symRef);
             }
          else
@@ -2067,6 +2075,8 @@ TR_BlockFrequencyInfo::generateBlockRawCountCalculationSubTree(TR::Compilation *
             while (subBVI.hasMoreElements())
                {
                TR::SymbolReference *symRef = comp->getSymRefTab()->createKnownStaticDataSymbolRef(getFrequencyForBlock(subBVI.getNextElement()), TR::Int32);
+               symRef->getSymbol()->setIsBlockFrequency();
+               symRef->getSymbol()->setNotDataAddress();
                TR::Node *counterLoad = TR::Node::createWithSymRef(node, TR::iload, 0, symRef);
                if (subRoot)
                   {

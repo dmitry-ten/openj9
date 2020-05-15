@@ -714,6 +714,31 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          scmRecord->setClassChainOffset(reloTarget, classChainOffsetInSharedCache);
          }
          break;
+      
+      case TR_BlockFrequency:
+         {
+         TR_RelocationRecordBlockFrequency *blockFrequencyRecord = reinterpret_cast<TR_RelocationRecordBlockFrequency *>(reloRecord);
+         TR_PersistentProfileInfo *profileInfo = TR::comp()->getRecompilationInfo()->getProfileInfo();
+
+         TR_ASSERT(NULL != profileInfo, "PersistentProfileInfo not found when creating relocation record for block frequency\n");
+         if (NULL == profileInfo)
+            {
+            self()->comp()->failCompilation<J9::AOTRelocationRecordGenerationFailure>("AOT header initialization can't find profile info");
+            }
+
+         TR_BlockFrequencyInfo *blockFrequencyInfo = profileInfo->getBlockFrequencyInfo();
+         TR_ASSERT(NULL != blockFrequencyInfo, "BlockFrequencyInfo not found when creating relocation record for block frequency\n");
+         if (NULL == blockFrequencyInfo)
+            {
+            self()->comp()->failCompilation<J9::AOTRelocationRecordGenerationFailure>("AOT header initialization can't find block frequency info");
+            }
+
+         uintptr_t frequencyArrayBase = reinterpret_cast<uintptr_t>(blockFrequencyInfo->getFrequencyArrayBase());
+         uintptr_t frequencyPtr = reinterpret_cast<uintptr_t>(relocation->getTargetAddress());
+
+         blockFrequencyRecord->setFrequencyOffset(reloTarget, frequencyPtr - frequencyArrayBase);
+         }
+         break;
 
       case TR_ValidateClassFromITableIndexCP:
          {
@@ -1477,6 +1502,16 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
                      (uint32_t)mfcsRecord->lookupClassID(reloTarget),
                      (uint32_t)mfcsRecord->beholderID(reloTarget),
                      (void *)mfcsRecord->romMethodOffsetInSCC(reloTarget));
+            }
+         }
+         break;
+      case TR_BlockFrequency:
+         {
+         TR_RelocationRecordBlockFrequency *bfRecord = reinterpret_cast<TR_RelocationRecordBlockFrequency *>(reloRecord);
+         self()->traceRelocationOffsets(cursor, offsetSize, endOfCurrentRecord, orderedPair);
+         if (isVerbose)
+            {
+            traceMsg(self()->comp(), "\n Frequency offset %lld", bfRecord->frequencyOffset(reloTarget));
             }
          }
          break;

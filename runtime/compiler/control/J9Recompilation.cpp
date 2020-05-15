@@ -208,6 +208,12 @@ J9::Recompilation::findOrCreateProfileInfo()
    return profileInfo;
    }
 
+TR_PersistentProfileInfo *
+J9::Recompilation::getProfileInfo()
+   {
+   return _bodyInfo->getProfileInfo();
+   }
+
 void
 J9::Recompilation::startOfCompilation()
    {
