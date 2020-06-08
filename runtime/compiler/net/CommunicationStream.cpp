@@ -24,6 +24,7 @@
 #include "control/Options.hpp" // TR::Options::useCompressedPointers()
 #include "env/CompilerEnv.hpp" // for TR::Compiler->target.is64Bit()
 #include "net/CommunicationStream.hpp"
+#include "control/MethodToBeCompiled.hpp" // for isRemoteCompReq()
 
 
 namespace JITServer
@@ -87,6 +88,18 @@ void
 CommunicationStream::writeMessage(Message &msg)
    {
    char *serialMsg = msg.serialize();
+
+   // if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+      // {
+      // auto compInfoPT = TR::compInfoPT;
+      // if (compInfoPT)
+         // {
+         // TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
+            // "writeMessage msgType=%d msgSize=%d compThreadId=%d",
+            // msg.type(), msg.serializedSize(), compInfoPT->getCompThreadId());
+         // }
+      // }
+
    // write serialized message to the socket
    writeBlocking(serialMsg, msg.serializedSize());
    msg.clearForWrite();

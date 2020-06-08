@@ -87,6 +87,8 @@ public:
    template <typename ...Args>
    void write(MessageType type, Args... args)
       {
+      _messageList.push_back(type);
+
       if (isReadingClassUnload() &&
           isClassUnloadingAttempted() &&
           (MessageType::compilationFailure != type) &&
@@ -95,6 +97,9 @@ public:
          if (TR::Options::getVerboseOption(TR_VerboseJITServer))
             TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "compThreadID=%d MessageType[%u] %s: throw TR::CompilationInterrupted",
                TR::compInfoPT->getCompThreadId(), type, messageNames[type]);
+
+         // compilation interrupted, clear message list for this compilation
+         _messageList.clear();
 
          throw TR::CompilationInterrupted();
          }
@@ -205,6 +210,20 @@ public:
       {
       try
          {
+         if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+            {
+            _messageList.push_back(MessageType::compilationCode);
+            // print out the list of all message numbers and clear the vector
+            TR_VerboseLog::vlogAcquire();
+            TR_VerboseLog::write("\nmessageList ");
+            for (auto it = _messageList.begin(); it != _messageList.end(); ++it)
+               {
+               TR_VerboseLog::write("%d ", *it);
+               }
+            TR_VerboseLog::write("\n");
+            TR_VerboseLog::vlogRelease();
+            }
+
          write(MessageType::compilationCode, args...);
          }
       catch (std::exception &e)
@@ -212,6 +231,7 @@ public:
          if (TR::Options::getVerboseOption(TR_VerboseJITServer))
             TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Could not finish compilation: %s", e.what());
          }
+      _messageList.clear();
       }
 
    /**
@@ -231,6 +251,7 @@ public:
          if (TR::Options::getVerboseOption(TR_VerboseJITServer))
             TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Could not write error code: %s", e.what());
          }
+      _messageList.clear();
       }
 
    void setClientId(uint64_t clientId)
@@ -266,6 +287,9 @@ private:
    static int _numConnectionsClosed;
    uint64_t _clientId;  // UID of client connected to this communication stream
    ClientSessionData *_pClientSessionData;
+
+   // message statistics
+   std::vector<MessageType> _messageList;
    };
 
 
