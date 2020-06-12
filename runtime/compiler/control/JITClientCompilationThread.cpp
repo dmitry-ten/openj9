@@ -1445,7 +1445,7 @@ handleServerMessage(JITServer::ClientStream *client, TR_J9VM *fe, JITServer::Mes
       case MessageType::ResolvedMethod_getResolvedInterfaceMethodAndMirror_3:
          {
          auto recv = client->getRecvData<TR_OpaqueMethodBlock *, TR_OpaqueClassBlock *, I_32, TR_ResolvedJ9Method *>();
-         auto method = std::get<0>(recv);
+         auto method = std::get<0>(recv); // owner ram method, used to get owner CP
          auto clazz = std::get<1>(recv);
          auto cpIndex = std::get<2>(recv);
          auto owningMethod = std::get<3>(recv);
@@ -1455,7 +1455,7 @@ handleServerMessage(JITServer::ClientStream *client, TR_J9VM *fe, JITServer::Mes
          // Create a mirror right away
          TR_ResolvedJ9JITServerMethodInfo methodInfo;
          if (resolved)
-            TR_ResolvedJ9JITServerMethod::createResolvedMethodFromJ9MethodMirror(methodInfo, (TR_OpaqueMethodBlock *) ramMethod, 0, owningMethod, fe, trMemory);
+            TR_ResolvedJ9JITServerMethod::createResolvedMethodFromJ9MethodMirror(methodInfo, (TR_OpaqueMethodBlock *) ramMethod, 0, owningMethod, fe, trMemory, cpIndex);
 
          client->write(response, resolved, ramMethod, methodInfo);
          }
@@ -1484,7 +1484,9 @@ handleServerMessage(JITServer::ClientStream *client, TR_J9VM *fe, JITServer::Mes
          // Create a mirror right away
          TR_ResolvedJ9JITServerMethodInfo methodInfo;
          if (j9method)
+            {
             TR_ResolvedJ9JITServerMethod::createResolvedMethodFromJ9MethodMirror(methodInfo, (TR_OpaqueMethodBlock *) j9method, (uint32_t)vtableOffset, mirror, fe, trMemory);
+            }
 
          client->write(response, j9method, methodInfo, vtableOffset);
          }

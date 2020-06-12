@@ -830,6 +830,13 @@ TR_ResolvedJ9JITServerMethod::localName(U_32 slotNumber, U_32 bcIndex, I_32 &len
 TR_OpaqueClassBlock *
 TR_ResolvedJ9JITServerMethod::getResolvedInterfaceMethod(I_32 cpIndex, UDATA *pITableIndex)
    {
+   // fprintf(stderr, "interfaceClass = %p\n", _interfaceClass);
+   if (_interfaceClass != reinterpret_cast<TR_OpaqueClassBlock *>(-1))
+      {
+      *pITableIndex = _iTableIndex;
+      return _interfaceClass;
+      }
+
    _stream->write(JITServer::MessageType::ResolvedMethod_getResolvedInterfaceMethod_2, _remoteMirror, cpIndex);
    auto recv = _stream->read<TR_OpaqueClassBlock *, UDATA>();
    *pITableIndex = std::get<1>(recv);
@@ -1565,7 +1572,7 @@ TR_ResolvedJ9JITServerMethod::createResolvedMethodMirror(TR_ResolvedJ9JITServerM
    }
 
 void
-TR_ResolvedJ9JITServerMethod::createResolvedMethodFromJ9MethodMirror(TR_ResolvedJ9JITServerMethodInfo &methodInfo, TR_OpaqueMethodBlock *method, uint32_t vTableSlot, TR_ResolvedMethod *owningMethod, TR_FrontEnd *fe, TR_Memory *trMemory)
+TR_ResolvedJ9JITServerMethod::createResolvedMethodFromJ9MethodMirror(TR_ResolvedJ9JITServerMethodInfo &methodInfo, TR_OpaqueMethodBlock *method, uint32_t vTableSlot, TR_ResolvedMethod *owningMethod, TR_FrontEnd *fe, TR_Memory *trMemory, int32_t cpIndex)
    {
    // Create resolved method mirror on the client.
    // Should be called to mirror a call to TR_Resolved(Relocatable)MethodFromJ9Method::createResolvedMethodFromJ9Method.
@@ -1629,11 +1636,11 @@ TR_ResolvedJ9JITServerMethod::createResolvedMethodFromJ9MethodMirror(TR_Resolved
 #endif
       }
 
-   packMethodInfo(methodInfo, resolvedMethod, fe);
+   packMethodInfo(methodInfo, resolvedMethod, fe, cpIndex);
    }
 
 void
-TR_ResolvedJ9JITServerMethod::packMethodInfo(TR_ResolvedJ9JITServerMethodInfo &methodInfo, TR_ResolvedJ9Method *resolvedMethod, TR_FrontEnd *fe)
+TR_ResolvedJ9JITServerMethod::packMethodInfo(TR_ResolvedJ9JITServerMethodInfo &methodInfo, TR_ResolvedJ9Method *resolvedMethod, TR_FrontEnd *fe, int32_t cpIndex)
    {
    auto &methodInfoStruct = std::get<0>(methodInfo);
    if (!resolvedMethod)
@@ -1670,6 +1677,17 @@ TR_ResolvedJ9JITServerMethod::packMethodInfo(TR_ResolvedJ9JITServerMethodInfo &m
    methodInfoStruct.virtualMethodIsOverridden = resolvedMethod->virtualMethodIsOverridden();
    methodInfoStruct.addressContainingIsOverriddenBit = resolvedMethod->addressContainingIsOverriddenBit();
    methodInfoStruct.classLoader = resolvedMethod->getClassLoader();
+   
+   if (cpIndex != -1)
+      {
+      methodInfoStruct.interfaceClass = 
+         resolvedMethod->owningMethod()->getResolvedInterfaceMethod(cpIndex, &methodInfoStruct.iTableIndex);
+      }
+   else
+      {
+      methodInfoStruct.interfaceClass = reinterpret_cast<TR_OpaqueClassBlock *>(-1);
+      methodInfoStruct.iTableIndex = 0;
+      }
 
    TR_PersistentJittedBodyInfo *bodyInfo = NULL;
    // Method may not have been compiled
@@ -1725,6 +1743,9 @@ TR_ResolvedJ9JITServerMethod::unpackMethodInfo(TR_OpaqueMethodBlock * aMethod, T
    _virtualMethodIsOverridden = methodInfoStruct.virtualMethodIsOverridden;
    _addressContainingIsOverriddenBit = methodInfoStruct.addressContainingIsOverriddenBit;
    _classLoader = methodInfoStruct.classLoader;
+
+   _interfaceClass = methodInfoStruct.interfaceClass;
+   _iTableIndex = methodInfoStruct.iTableIndex;
 
    auto &bodyInfoStr = std::get<1>(methodInfo);
    auto &methodInfoStr = std::get<2>(methodInfo);
@@ -1925,7 +1946,7 @@ TR_ResolvedJ9JITServerMethod::archetypeArgPlaceholderSlot()
    return paramSlots;
    }
 
-TR_ResolvedRelocatableJ9JITServerMethod::TR_ResolvedRelocatableJ9JITServerMethod(TR_OpaqueMethodBlock * aMethod, TR_FrontEnd * fe, TR_Memory * trMemory, TR_ResolvedMethod * owner, uint32_t vTableSlot)
+TR_ResolvedRelocatableJ9JITServerMethod::TR_ResolvedRelocatableJ9JITServerMethod(TR_OpaqueMethodBlock * aMethod, TR_FrontEnd * fe, TR_Memory * trMemory, TR_ResolvedMethod * owner, uint32_t vTableSlot, int32_t cpIndex)
    : TR_ResolvedJ9JITServerMethod(aMethod, fe, trMemory, owner, vTableSlot)
    {
    // NOTE: avoid using this constructor as much as possible.
@@ -1950,7 +1971,7 @@ TR_ResolvedRelocatableJ9JITServerMethod::TR_ResolvedRelocatableJ9JITServerMethod
       }
    }
 
-TR_ResolvedRelocatableJ9JITServerMethod::TR_ResolvedRelocatableJ9JITServerMethod(TR_OpaqueMethodBlock * aMethod, TR_FrontEnd * fe, TR_Memory * trMemory, const TR_ResolvedJ9JITServerMethodInfo &methodInfo, TR_ResolvedMethod * owner, uint32_t vTableSlot)
+TR_ResolvedRelocatableJ9JITServerMethod::TR_ResolvedRelocatableJ9JITServerMethod(TR_OpaqueMethodBlock * aMethod, TR_FrontEnd * fe, TR_Memory * trMemory, const TR_ResolvedJ9JITServerMethodInfo &methodInfo, TR_ResolvedMethod * owner, uint32_t vTableSlot, int32_t cpIndex)
    : TR_ResolvedJ9JITServerMethod(aMethod, fe, trMemory, methodInfo, owner, vTableSlot)
    {
    TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
