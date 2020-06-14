@@ -1806,6 +1806,17 @@ handleServerMessage(JITServer::ClientStream *client, TR_J9VM *fe, JITServer::Mes
                   if (ramMethod) createMethod = true;
                   break;
                   }
+               case TR_ResolvedMethodType::ImproperInterface:
+                  {
+                  TR::VMAccessCriticalSection getResolvedHandleMethod(fe);
+                  ramMethod = jitGetImproperInterfaceMethodFromCP(
+                     fe->vmThread(),
+                     owningMethod->cp(),
+                     cpIndex,
+                     reinterpret_cast<UDATA *>(&vTableOffset));
+                  if (ramMethod) createMethod = true;
+                  break;
+                  }
                default:
                   {
                   break;
