@@ -1891,6 +1891,47 @@ TR_ResolvedJ9JITServerMethod::cacheResolvedMethodsCallees(int32_t ttlForUnresolv
       }
    }
 
+void
+TR_ResolvedJ9JITServerMethod::cacheSubClassMethods(ListIterator<TR_PersistentClassInfo> &subClassesIt, int32_t cpIndexOrOffset, bool isInterface, int32_t ttlForUnresolved)
+   {
+   auto compInfoPT = (TR::CompilationInfoPerThreadRemote *) _fe->_compInfoPT;
+   auto comp = compInfoPT->getCompilation();
+   std::vector<TR_OpaqueClassBlock *> subClasses;
+   for (TR_PersistentClassInfo *subClassInfo = subClassesIt.getFirst(); subClassInfo; subClassInfo = subClassesIt.getNext())
+      {
+      TR_OpaqueClassBlock *subClass = (TR_OpaqueClassBlock *) subClassInfo->getClassId();
+      if (TR::Compiler->cls.isInterfaceClass(comp, subClass))
+         continue;
+      subClasses.push_back(subClass);
+      }
+   int32_t numMethods = subClasses.size();
+
+   _stream->write(JITServer::MessageType::ResolvedMethod_getResolvedMethodsOfSubclasses, (TR_ResolvedJ9Method *) _remoteMirror, subClasses, cpIndexOrOffset, isInterface);
+   auto recv = _stream->read<std::vector<J9Method *>, std::vector<TR_ResolvedJ9JITServerMethodInfo>>();
+
+   auto ramMethods = std::get<0>(recv);
+   auto methodInfos = std::get<1>(recv);
+   TR_ASSERT(numMethods == ramMethods.size(), "Number of received methods does not match the number of requested methods");
+   for (int32_t i = 0; i < numMethods; ++i)
+      {
+      TR_ResolvedMethodType type = isInterface ? TR_ResolvedMethodType::Interface : TR_ResolvedMethodType::VirtualFromOffset;
+      TR_ResolvedMethod *resolvedMethod;
+      TR_ResolvedMethodKey key = compInfoPT->getResolvedMethodKey(type, (TR_OpaqueClassBlock *) _ramClass, cpIndexOrOffset, subClasses[i]);
+      if (!compInfoPT->getCachedResolvedMethod(
+             key,
+             this,
+             &resolvedMethod))
+         {
+         compInfoPT->cacheResolvedMethod(
+            key,
+            (TR_OpaqueMethodBlock *) ramMethods[i],
+            0,
+            methodInfos[i],
+            ttlForUnresolved);
+         }
+      }
+   }
+
 bool
 TR_ResolvedJ9JITServerMethod::validateMethodFieldAttributes(const TR_J9MethodFieldAttributes &attributes, bool isStatic, int32_t cpIndex, bool isStore, bool needAOTValidation)
    {

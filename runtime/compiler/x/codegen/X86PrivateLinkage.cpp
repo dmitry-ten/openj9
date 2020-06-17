@@ -1412,6 +1412,11 @@ void TR::X86CallSite::computeProfiledTargets()
          uintptr_t totalPICHitFrequency = 0;
          uintptr_t totalPICMissFrequency = 0;
          ListIterator<TR_ExtraAddressInfo> sortedValuesIt(&valuesSortedByFrequency);
+
+         //
+         // static_cast<TR_ResolvedJ9JITServerMethod *>(getSymbolReference()->getOwningMethod(comp()))->getResolvedInterface
+
+
          for (TR_ExtraAddressInfo *profiledInfo = sortedValuesIt.getFirst(); profiledInfo != NULL; profiledInfo = sortedValuesIt.getNext())
             {
             float frequency = ((float)profiledInfo->_frequency) / totalFrequency;

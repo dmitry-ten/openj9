@@ -55,6 +55,7 @@
 #include "infra/Stack.hpp"
 #include "ras/Debug.hpp"
 #include "runtime/RuntimeAssumptions.hpp"
+#include "env/j9methodServer.hpp"
 
 #define MAX_SNIFF_BYTECODE_SIZE             1000
 #define MAX_SNIFF_DEPTH 10
@@ -310,11 +311,28 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeCallGraph(TR::
 	 TR_ClassQueries::getSubClasses(classInfo, subClasses, fe());
          if (trace())
             traceMsg(comp(), "Number of subclasses = %d\n", subClasses.getSize());
+         // pre-fetch resolved methods for virtual or interface methods of subclasses
+         //
+         // If the current method is an interface method or a virtual method,
+         // we try to find its implementations in the subclasses of the containing class
+         //
          TR_ScratchList<TR_ResolvedMethod> subMethods(trMemory());
          int32_t numSubMethods = 0;
          ListIterator<TR_PersistentClassInfo> subClassesIt(&subClasses);
+
+#if defined(J9VM_OPT_JITSERVER)
+         if(comp()->isOutOfProcessCompilation())
+            {
+            static_cast<TR_ResolvedJ9JITServerMethod *>(owningMethod)->cacheSubClassMethods(
+               subClassesIt,
+               methodSymbol->isInterface() ? symRef->getCPIndex() : symRef->getOffset(),
+               methodSymbol->isInterface(),
+               2);
+            }
+#endif
          for (TR_PersistentClassInfo *subClassInfo = subClassesIt.getFirst(); subClassInfo; subClassInfo = subClassesIt.getNext())
             {
+            fprintf(stderr, "IPA\n");
             TR_OpaqueClassBlock *subClass = (TR_OpaqueClassBlock *) subClassInfo->getClassId();
             if (TR::Compiler->cls.isInterfaceClass(comp(), subClass))
                continue;

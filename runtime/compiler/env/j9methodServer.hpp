@@ -218,6 +218,7 @@ public:
    static void createResolvedMethodFromJ9MethodMirror(TR_ResolvedJ9JITServerMethodInfo &methodInfo, TR_OpaqueMethodBlock *method, uint32_t vTableSlot, TR_ResolvedMethod *owningMethod, TR_FrontEnd *fe, TR_Memory *trMemory);
    bool addValidationRecordForCachedResolvedMethod(const TR_ResolvedMethodKey &key, TR_OpaqueMethodBlock *method);
    void cacheResolvedMethodsCallees(int32_t ttlForUnresolved = 2);
+   void cacheSubClassMethods(ListIterator<TR_PersistentClassInfo> &classInfo, int32_t cpIndexOrOffset, bool isInterface, int32_t ttlForUnresolved = 2);
 
 protected:
    JITServer::ServerStream *_stream;
