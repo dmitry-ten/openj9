@@ -483,6 +483,16 @@ struct TR_RelocationRecordResolvedTrampolinesPrivateData
    TR_OpaqueMethodBlock *_method;
    };
 
+struct TR_RelocationRecordBlockFrequencyPrivateData
+   {
+   uint8_t *_addressToPatch;
+   };
+
+struct TR_RelocationRecordRecompQueuedFlagPrivateData
+   {
+   uint8_t *_addressToPatch;
+   };
+
 union TR_RelocationRecordPrivateData
    {
    TR_RelocationRecordHelperAddressPrivateData helperAddress;
@@ -498,6 +508,8 @@ union TR_RelocationRecordPrivateData
    TR_RelocationRecordDebugCounterPrivateData debugCounter;
    TR_RelocationSymbolFromManagerPrivateData symbolFromManager;
    TR_RelocationRecordResolvedTrampolinesPrivateData resolvedTrampolines;
+   TR_RelocationRecordBlockFrequencyPrivateData blockFrequency;
+   TR_RelocationRecordRecompQueuedFlagPrivateData recompQueuedFlag;
    };
 
 enum TR_RelocationRecordAction
@@ -620,6 +632,39 @@ class TR_RelocationRecordWithOffset : public TR_RelocationRecord
       uintptr_t offset(TR_RelocationTarget *reloTarget);
 
       virtual int32_t bytesInHeaderAndPayload();
+
+      virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+   };
+
+class TR_RelocationRecordBlockFrequency : public TR_RelocationRecord
+   {
+   public:
+      TR_RelocationRecordBlockFrequency() {}
+      TR_RelocationRecordBlockFrequency(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
+
+      virtual char *name();
+      virtual void print(TR_RelocationRuntime *reloRuntime);
+
+      void setFrequencyOffset(TR_RelocationTarget *reloTarget, uintptr_t offset);
+      uintptr_t frequencyOffset(TR_RelocationTarget *reloTarget);
+
+      virtual int32_t bytesInHeaderAndPayload();
+
+      virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+   };
+
+class TR_RelocationRecordRecompQueuedFlag : public TR_RelocationRecord
+   {
+   public:
+      TR_RelocationRecordRecompQueuedFlag() {}
+      TR_RelocationRecordRecompQueuedFlag(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
+
+      virtual char *name();
+      virtual void print(TR_RelocationRuntime *reloRuntime);
 
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);

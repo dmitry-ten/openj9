@@ -856,6 +856,7 @@ void TR_JProfilingBlock::addRecompilationTests(TR_BlockFrequencyInfo *blockFrequ
          // In this case we only check if we have queued for recompilation before comparing against method invocation count.
          int32_t *loadAddress = isProfilingCompilation ? blockFrequencyInfo->getIsQueuedForRecompilation() : blockFrequencyInfo->getEnableJProfilingRecompilation();
          TR::SymbolReference *symRef = comp()->getSymRefTab()->createKnownStaticDataSymbolRef(loadAddress, TR::Int32);
+         symRef->getSymbol()->setIsRecompQueuedFlag();
          TR::Node *enableLoad = TR::Node::createWithSymRef(node, TR::iload, 0, symRef);
          TR::Node *enableTest = TR::Node::createif(TR::ificmpeq, enableLoad, TR::Node::iconst(node, -1), originalFirstBlock->getEntry());
          TR::TreeTop *enableTree = TR::TreeTop::create(comp(), enableTest);
