@@ -28,12 +28,11 @@
 #include "env/ut_j9jit.h"
 #include "net/ServerStream.hpp" // for JITServer::ServerStream
 #include "runtime/RuntimeAssumptions.hpp" // for TR_AddressSet
-#include "env/JITServerPersistentCHTable.hpp"
 
 
 ClientSessionData::ClientSessionData(uint64_t clientUID, uint32_t seqNo) : 
    _clientUID(clientUID), _expectedSeqNo(seqNo), _maxReceivedSeqNo(seqNo), _OOSequenceEntryList(NULL),
-   _chTable(NULL),
+   _chTableClassMap(decltype(_chTableClassMap)::allocator_type(TR::Compiler->persistentAllocator())),
    _romClassMap(decltype(_romClassMap)::allocator_type(TR::Compiler->persistentAllocator())),
    _J9MethodMap(decltype(_J9MethodMap)::allocator_type(TR::Compiler->persistentAllocator())),
    _classBySignatureMap(decltype(_classBySignatureMap)::allocator_type(TR::Compiler->persistentAllocator())),
@@ -502,17 +501,17 @@ ClientSessionData::clearCaches()
 
    _classChainDataMap.clear();
 
+   // Free CHTable 
+   for (auto& it : _chTableClassMap)
+      {
+      TR_PersistentClassInfo *classInfo = it.second;
+      classInfo->removeSubClasses();
+      jitPersistentFree(classInfo);
+      }
+   _chTableClassMap.clear();
    _registeredJ2IThunksMap.clear();
    _registeredInvokeExactJ2IThunksSet.clear();
    _bClassUnloadingAttempt = false;
-
-   if (_chTable)
-      {
-      // Free CH table
-      _chTable->~JITServerPersistentCHTable();
-      jitPersistentFree(_chTable);
-      _chTable = NULL;
-      }
    }
 
 void
@@ -535,16 +534,6 @@ ClientSessionData::notifyAndDetachFirstWaitingThread()
       _OOSequenceEntryList = entry->_next;
       }
    return entry;
-   }
-
-TR_PersistentCHTable *
-ClientSessionData::getCHTable()
-   {
-   if (!_chTable)
-      {
-      _chTable = new (PERSISTENT_NEW) JITServerPersistentCHTable(trPersistentMemory);
-      }
-   return _chTable;
    }
 
 char *
