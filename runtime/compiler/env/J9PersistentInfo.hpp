@@ -246,7 +246,7 @@ class PersistentInfo : public OMR::PersistentInfoConnector
    void setInvokeExactJ2IThunkTable(TR_J2IThunkTable *table){ _invokeExactJ2IThunkTable = table; }
 
 
-   TR_PersistentCHTable * getPersistentCHTable() { return _persistentCHTable; }
+   TR_PersistentCHTable * getPersistentCHTable();
    void setPersistentCHTable(TR_PersistentCHTable *table) { _persistentCHTable = table; }
 
    TR_RuntimeAssumptionTable *getRuntimeAssumptionTable() { return &_runtimeAssumptionTable; }
