@@ -2096,8 +2096,9 @@ J9::Options::setupJITServerOptions()
       self()->setOption(TR_DisableProfiling); // JITServer limitation, JIT profiling data is not available to remote compiles yet
       self()->setOption(TR_DisableEDO); // JITServer limitation, EDO counters are not relocatable yet
       self()->setOption(TR_DisableMethodIsCold); // Shady heuristic; better to disable to reduce client/server traffic
-      self()->setOption(TR_DisableJProfilerThread);
-      self()->setOption(TR_EnableJProfiling, false);
+      // NOTE: attempting to implement JProfiler support
+      // self()->setOption(TR_DisableJProfilerThread);
+      // self()->setOption(TR_EnableJProfiling, false);
 
       if (compInfo->getPersistentInfo()->getRemoteCompilationMode() == JITServer::SERVER)
          {
@@ -2109,6 +2110,10 @@ J9::Options::setupJITServerOptions()
          // no IProfiler info is collected at the server itself
          self()->setOption(TR_DisableIProfilerThread);
          J9::Compilation::setOutOfProcessCompilation();
+         }
+      else
+         {
+         // self()->setOption(TR_DisableJProfilerThread);
          }
 
       // In the JITServer world, expensive compilations are performed remotely so there is no risk of blowing the footprint limit on the JVM

@@ -2365,9 +2365,9 @@ void TR_BlockFrequencyInfo::serialize(TR_Serializer &serializer) const
       }
    }
 
-TR_BlockFrequencyInfo * TR_BlockFrequencyInfo::deserialize(TR_Serializer &serializer)
+TR_BlockFrequencyInfo * TR_BlockFrequencyInfo::deserialize(TR_Serializer &serializer, TR_PersistentProfileInfo *currentProfile)
    {
-   return new (PERSISTENT_NEW) TR_BlockFrequencyInfo(serializer);
+   return new (PERSISTENT_NEW) TR_BlockFrequencyInfo(serializer, currentProfile);
    }
 
 const uint32_t TR_CatchBlockProfileInfo::EDOThreshold = 50;
@@ -2549,6 +2549,7 @@ TR_PersistentProfileInfo::TR_PersistentProfileInfo(TR_Serializer &serializer) :
    _active(true),
    _refCount(1)
    {
+   fprintf(stderr, "Create TR_PersistentProfileInfo from serializer\n");
    _callSiteInfo = serializer.nextDataNotNullPointer() ? TR_CallSiteInfo::deserialize(serializer) : NULL;
    _blockFrequencyInfo = serializer.nextDataNotNullPointer() ? TR_BlockFrequencyInfo::deserialize(serializer, this) : NULL;
    if (serializer.nextDataNotNullPointer())
@@ -2828,6 +2829,7 @@ void TR_PersistentProfileInfo::getSerializedSize(TR_Serializer &serializer) cons
 
 void TR_PersistentProfileInfo::serialize(TR_Serializer &serializer) const
    {
+   fprintf(stderr, "Serializing persistent profile info\n");
    serializer.write(_callSiteInfo);
    if (_callSiteInfo)
       {

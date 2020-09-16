@@ -669,7 +669,7 @@ class TR_BlockFrequencyInfo
 
    void getSerializedSize(TR_Serializer &serializer) const;
    void serialize(TR_Serializer &serializer) const;
-   static TR_BlockFrequencyInfo * deserialize(TR_Serializer &serializer);
+   static TR_BlockFrequencyInfo * deserialize(TR_Serializer &serializer, TR_PersistentProfileInfo *currentProfile);
 
    private:
 
