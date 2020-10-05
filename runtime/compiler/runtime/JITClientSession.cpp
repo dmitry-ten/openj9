@@ -406,6 +406,7 @@ ClientSessionData::getOrCacheVMInfo(JITServer::ServerStream *stream)
       auto recv = stream->read<VMInfo, std::vector<CacheDescriptor> >();
       _vmInfo = new (PERSISTENT_NEW) VMInfo(std::get<0>(recv));
       _vmInfo->_j9SharedClassCacheDescriptorList = reconstructJ9SharedClassCacheDescriptorList(std::get<1>(recv));
+      runtimeHelpers.setAddress(TR_prepareForOSR, _vmInfo->_prepareForOSRHelper);
       }
    return _vmInfo;
    }
