@@ -54,7 +54,8 @@ PersistentAllocator::~PersistentAllocator() throw()
 void *
 PersistentAllocator::allocate(size_t size, const std::nothrow_t tag, void * hint) throw()
    {
-   return allocateInternal(size);
+   // return allocateInternal(size);
+   return malloc(size);
    }
 
 void *
@@ -299,9 +300,10 @@ PersistentAllocator::freeBlock(Block * block)
 void
 PersistentAllocator::deallocate(void * mem, size_t) throw()
    {
-   Block * block = static_cast<Block *>(mem) - 1;
-   TR_ASSERT_FATAL(block->_next == NULL, "Freeing a block that is already on the free list. block=%p next=%p", block, block->_next);
-   freeBlock(block);
+   free(mem);
+   // Block * block = static_cast<Block *>(mem) - 1;
+   // TR_ASSERT_FATAL(block->_next == NULL, "Freeing a block that is already on the free list. block=%p next=%p", block, block->_next);
+   // freeBlock(block);
    }
 
 } // namespace J9
