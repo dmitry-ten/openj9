@@ -89,6 +89,7 @@ TR_VMFieldsInfo::TR_VMFieldsInfo(TR::Compilation * comp, J9Class *aClazz, int bu
      _statics(NULL),
      _allocKind(allocKind)
 {
+   TR_ASSERT_FATAL(!comp->isOutOfProcessCompilation(), "TR_VMFieldsInfo");
    if (buildFields)
       {
       // Weird: We can't seem to just use List with stackAlloc?  I need to use a subclass??
@@ -108,11 +109,11 @@ TR_VMFieldsInfo::TR_VMFieldsInfo(TR::Compilation * comp, J9Class *aClazz, int bu
       }
 
    // self
-   TR_ASSERT(!(aClazz->romClass->modifiers & J9AccClassArray), "Cannot construct TR_VMFieldsInfo for array class %p", aClazz);
+   TR_ASSERT(!(TR::Compiler->cls.romClassOf((TR_OpaqueClassBlock *) aClazz)->modifiers & J9AccClassArray), "Cannot construct TR_VMFieldsInfo for array class %p", aClazz);
    collectFieldInfo(aClazz);
 
    //supers
-   const int32_t numSupClasses = J9CLASS_DEPTH(aClazz);
+   const int32_t numSupClasses = TR::Compiler->cls.classDepthOf((TR_OpaqueClassBlock *) aClazz);
    J9Class *supClass = aClazz;
    for (int32_t i = 0; i < numSupClasses-1; i++)
       {
@@ -131,57 +132,73 @@ TR_VMFieldsInfo::TR_VMFieldsInfo(TR::Compilation * comp, J9Class *aClazz, int bu
       collectFieldInfo(supClass);
       }
 
-   // copy the GCData
-   UDATA *descriptorPtr = aClazz->instanceDescription;
-   UDATA descriptorWord=0;
-
-   int32_t bitIndex = 0;
-   if ( ((UDATA) descriptorPtr) & BCT_J9DescriptionImmediate )
+   if (comp->isOutOfProcessCompilation())
       {
-      bitIndex++;
-      descriptorWord = ((UDATA) descriptorPtr) >> 1;
+      int32_t *referenceSlots = comp->fej9()->getReferenceSlotsInClass(comp, (TR_OpaqueClassBlock *) aClazz);
+      int32_t slotIdx = 0;
+      while (referenceSlots[slotIdx])
+         {
+         _gcDescriptor.push_back(referenceSlots[slotIdx]);
+         slotIdx++;
+         }
+      _gcDescriptor.push_back(0);
       }
    else
       {
-      descriptorWord = descriptorPtr[0];
-      }
+      // copy the GCData
+      UDATA *descriptorPtr = aClazz->instanceDescription;
+      UDATA descriptorWord=0;
 
-   const int32_t numBytesInSlot = TR::Compiler->om.sizeofReferenceField();
-   const int32_t numBitsInWord = 8*sizeof(decltype(*(aClazz->instanceDescription)));
-   const int32_t numSlotsInObject = (aClazz->totalInstanceSize + numBytesInSlot - 1)/numBytesInSlot;
-   const uintptr_t slotsInHeader = (TR::Compiler->om.objectHeaderSizeInBytes()/numBytesInSlot);
-   uintptr_t countSlots = slotsInHeader;
-   while (1)
-      {
-      if ( descriptorWord & 0x1 )
+      int32_t bitIndex = 0;
+      if ( ((UDATA) descriptorPtr) & BCT_J9DescriptionImmediate )
          {
-         _gcDescriptor.push_back(countSlots);
-         }
-      countSlots++;
-      if (countSlots >= (slotsInHeader + numSlotsInObject))
-         {
-         break;
-         }
-      if (bitIndex == (numBitsInWord - 1))
-         {
-         descriptorPtr++;
-         bitIndex = 0;
-         descriptorWord = *descriptorPtr;
+         bitIndex++;
+         descriptorWord = ((UDATA) descriptorPtr) >> 1;
          }
       else
          {
-         descriptorWord = descriptorWord >> 1;
-         bitIndex++;
+         descriptorWord = descriptorPtr[0];
          }
+
+      const int32_t numBytesInSlot = TR::Compiler->om.sizeofReferenceField();
+      const int32_t numBitsInWord = 8*sizeof(decltype(*(aClazz->instanceDescription)));
+      const int32_t numSlotsInObject = (TR::Compiler->cls.classInstanceSize((TR_OpaqueClassBlock *) aClazz) + numBytesInSlot - 1)/numBytesInSlot;
+      const uintptr_t slotsInHeader = (TR::Compiler->om.objectHeaderSizeInBytes()/numBytesInSlot);
+      uintptr_t countSlots = slotsInHeader;
+      while (1)
+         {
+         if ( descriptorWord & 0x1 )
+            {
+            _gcDescriptor.push_back(countSlots);
+            }
+         countSlots++;
+         if (countSlots >= (slotsInHeader + numSlotsInObject))
+            {
+            break;
+            }
+         if (bitIndex == (numBitsInWord - 1))
+            {
+            descriptorPtr++;
+            bitIndex = 0;
+            descriptorWord = *descriptorPtr;
+            }
+         else
+            {
+            descriptorWord = descriptorWord >> 1;
+            bitIndex++;
+            }
+         }
+      // null terminated
+      _gcDescriptor.push_back(0);
       }
-   // null terminated
-   _gcDescriptor.push_back(0);
 }
 
 void
 TR_VMFieldsInfo::collectFieldInfo(J9Class *aClazz)
    {
-   J9ROMClass *romCl = aClazz->romClass;
+   fprintf(stderr, "collectFieldInfo\n");
+   // J9ROMClass *romCl = aClazz->romClass;
+   J9ROMClass *romCl = TR::Compiler->cls.romClassOf((TR_OpaqueClassBlock *) aClazz);
    J9ROMFieldWalkState state;
    J9ROMFieldShape * currentField = romFieldsStartDo(romCl, &state);
    while (currentField)
@@ -199,7 +216,7 @@ TR_VMFieldsInfo::buildField(J9Class *aClazz, J9ROMFieldShape *fieldShape)
       {
       field = new (_comp->trMemory(), _allocKind) TR_VMField(_comp, aClazz, fieldShape, _allocKind);
       _statics->add(field);
-	   }
+      }
    else if (_fields)
       {
       field = new (_comp->trMemory(), _allocKind) TR_VMField(_comp, aClazz, fieldShape,  _allocKind);

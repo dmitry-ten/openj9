@@ -1649,6 +1649,13 @@ TR_J9ServerVM::isClassArray(TR_OpaqueClassBlock *klass)
       }
    }
 
+uintptr_t
+TR_J9ServerVM::getFieldOffset(TR::Compilation * comp, TR::SymbolReference* classRef, TR::SymbolReference* fieldRef)
+   {
+   fprintf(stderr, "getFieldOffset\n");
+   return 0;
+   }
+
 bool
 TR_J9ServerVM::instanceOfOrCheckCastHelper(J9Class *instanceClass, J9Class* castClass, bool cacheUpdate)
    {

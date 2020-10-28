@@ -4731,11 +4731,7 @@ break
    // required by this optimization efficiently, we can re-enable this optimization.
    if (cg()->getEnforceStoreOrder() && calledMethod->isConstructor())
       {
-      if (resolvedMethodSymbol
-#ifdef J9VM_OPT_JITSERVER
-         && !cg()->comp()->isOutOfProcessCompilation()
-#endif /* defined(J9VM_OPT_JITSERVER) */
-         )
+      if (resolvedMethodSymbol)
          {
          J9Class *methodClass = (J9Class *) resolvedMethodSymbol->getResolvedMethod()->containingClass();
          TR_VMFieldsInfo *fieldsInfoByIndex = new (comp()->trStackMemory()) TR_VMFieldsInfo(comp(), methodClass, 1, stackAlloc);
