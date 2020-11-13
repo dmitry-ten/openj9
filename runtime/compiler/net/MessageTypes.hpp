@@ -96,6 +96,7 @@ enum MessageType : uint16_t
    ResolvedMethod_dynamicConstant,
    ResolvedMethod_definingClassFromCPFieldRef,
    ResolvedMethod_getResolvedImplementorMethods,
+   ResolvedMethod_isFieldFlattened,
 
    ResolvedRelocatableMethod_createResolvedRelocatableJ9Method, // 66
    ResolvedRelocatableMethod_fieldAttributes,
@@ -371,6 +372,7 @@ static const char *messageNames[MessageType_ARRAYSIZE] =
    "ResolvedMethod_dynamicConstant",
    "ResolvedMethod_definingClassFromCPFieldRef",
    "ResolvedMethod_getResolvedImplementorMethods",
+   "ResolvedMethod_isFieldFlattened",
    "ResolvedRelocatableMethod_createResolvedRelocatableJ9Method", // 66
    "ResolvedRelocatableMethod_fieldAttributes",
    "ResolvedRelocatableMethod_staticAttributes",

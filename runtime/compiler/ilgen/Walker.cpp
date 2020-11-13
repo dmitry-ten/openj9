@@ -5092,6 +5092,7 @@ TR_J9ByteCodeIlGenerator::loadInstance(int32_t cpIndex)
    TR_ResolvedJ9Method * owningMethod = static_cast<TR_ResolvedJ9Method*>(_methodSymbol->getResolvedMethod());
    if (TR::Compiler->om.areValueTypesEnabled() && owningMethod->isFieldQType(cpIndex))
       {
+      fprintf(stderr, "loadInstance\n");
       if (!isFieldResolved(comp(), owningMethod, cpIndex, false))
          {
          abortForUnresolvedValueTypeOp("getfield", "field");
@@ -6342,6 +6343,7 @@ TR_J9ByteCodeIlGenerator::genNew(TR::ILOpCodes opCode)
 void
 TR_J9ByteCodeIlGenerator::genWithField(uint16_t fieldCpIndex)
    {
+   fprintf(stderr, "genWithField\n");
    const int32_t bcIndex = currentByteCodeIndex();
    int32_t classCpIndex = method()->classCPIndexOfFieldOrStatic(fieldCpIndex);
    TR_OpaqueClassBlock *valueClass = method()->getClassFromConstantPool(comp(), classCpIndex, true);
@@ -6873,6 +6875,7 @@ TR_J9ByteCodeIlGenerator::storeInstance(int32_t cpIndex)
    TR_ResolvedJ9Method * owningMethod = static_cast<TR_ResolvedJ9Method*>(_methodSymbol->getResolvedMethod());
    if (TR::Compiler->om.areValueTypesEnabled() && owningMethod->isFieldQType(cpIndex))
       {
+      fprintf(stderr, "storeInstance\n");
       if (!isFieldResolved(comp(), owningMethod, cpIndex, true))
          {
          abortForUnresolvedValueTypeOp("putfield", "field");

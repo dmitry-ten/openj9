@@ -197,6 +197,9 @@ public:
     * 2 concrete classses and false otherwise.
     */
    bool containsZeroOrOneConcreteClass(TR::Compilation *comp, List<TR_PersistentClassInfo>* subClasses);
+
+   char *getROMFieldShapeName(TR::Compilation *comp, TR_OpaqueClassBlock *clazz, J9ROMFieldShape *fieldShape, int32_t &length);
+   char *getROMFieldShapeSignature(TR::Compilation *comp, TR_OpaqueClassBlock *clazz, J9ROMFieldShape *fieldShape, int32_t &length);
    };
 
 }

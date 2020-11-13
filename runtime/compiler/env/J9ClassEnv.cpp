@@ -25,6 +25,7 @@
 #include "control/CompilationRuntime.hpp"
 #include "control/CompilationThread.hpp"
 #include "control/JITServerHelpers.hpp"
+#include "runtime/JITClientSession.hpp"
 #endif /* defined(J9VM_OPT_JITSERVER) */
 #include "env/ClassEnv.hpp"
 #include "env/CompilerEnv.hpp"
@@ -887,4 +888,63 @@ J9::ClassEnv::isClassRefValueType(TR::Compilation *comp, TR_OpaqueClassBlock *cp
       J9JavaVM *vm = comp->fej9()->getJ9JITConfig()->javaVM;
       return vm->internalVMFunctions->isClassRefQtype(j9class, cpIndex);
       }
+   }
+
+char *
+J9::ClassEnv::getROMFieldShapeName(TR::Compilation *comp, TR_OpaqueClassBlock *clazz, J9ROMFieldShape *fieldShape, int32_t &length)
+   {
+#if defined(J9VM_OPT_JITSERVER)
+   if (comp->isOutOfProcessCompilation())
+      {
+      TR_ASSERT_FATAL(comp->isOutOfProcessCompilation(), "Must only be called on JITServer server");
+      TR_ASSERT(JITServerHelpers::isAddressInROMClass(fieldShape, self()->romClassOf(clazz)), "Field shape must be in ROM class");
+
+      TR::CompilationInfoPerThread *compInfoPT = comp->fej9()->_compInfoPT;
+
+      OMR::CriticalSection getRemoteROMClass(compInfoPT->getClientData()->getROMMapMonitor());
+      auto &classMap = compInfoPT->getClientData()->getROMClassMap();
+      auto it = classMap.find(reinterpret_cast<J9Class *>(clazz));
+      auto &classInfo = it->second;
+      char *name = classInfo.getROMString(length, fieldShape,
+                             {
+                             offsetof(J9ROMFieldShape, nameAndSignature),
+                             offsetof(J9ROMNameAndSignature, name)
+                             });
+      return (uint8_t *) name;
+      }
+#endif
+   J9UTF8 *nameUtf8 =  J9ROMFIELDSHAPE_NAME(fieldShape);
+   char *nPtr = (char *) J9UTF8_DATA(nameUtf8);
+   length = J9UTF8_LENGTH(nameUtf8) + 1;
+   return nPtr;
+   }
+
+char *
+J9::ClassEnv::getROMFieldShapeSignature(TR::Compilation *comp, TR_OpaqueClassBlock *clazz, J9ROMFieldShape *fieldShape, int32_t &length)
+   {
+#if defined(J9VM_OPT_JITSERVER)
+   if (comp->isOutOfProcessCompilation())
+      {
+      TR_ASSERT_FATAL(comp->isOutOfProcessCompilation(), "Must only be called on JITServer server");
+      TR_ASSERT(JITServerHelpers::isAddressInROMClass(fieldShape, self()->romClassOf(clazz)), "Field shape must be in ROM class");
+
+      TR::CompilationInfoPerThread *compInfoPT = comp->fej9()->_compInfoPT;
+
+      OMR::CriticalSection getRemoteROMClass(compInfoPT->getClientData()->getROMMapMonitor());
+      auto &classMap = compInfoPT->getClientData()->getROMClassMap();
+      auto it = classMap.find(reinterpret_cast<J9Class *>(clazz));
+      auto &classInfo = it->second;
+      int32_t len;
+      char *name = classInfo.getROMString(length, fieldShape,
+                             {
+                             offsetof(J9ROMFieldShape, nameAndSignature),
+                             offsetof(J9ROMNameAndSignature, signature)
+                             });
+      return (uint8_t *) name;
+      }
+#endif
+   J9UTF8 *sigUtf8 =  J9ROMFIELDSHAPE_SIGNATURE(fieldShape);
+   char *sPtr = (char *) J9UTF8_DATA(sigUtf8);
+   length = J9UTF8_LENGTH(sigUtf8) + 1;
+   return sPtr;
    }

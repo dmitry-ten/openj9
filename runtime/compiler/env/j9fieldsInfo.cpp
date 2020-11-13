@@ -55,13 +55,9 @@ TR_VMField::TR_VMField(TR::Compilation * comp, J9Class *aClazz, J9ROMFieldShape 
    modifiers = fieldShape->modifiers;
 
    shape = fieldShape;
-   nameUtf8 = J9ROMFIELDSHAPE_NAME(fieldShape);
-   nPtr = (char *) J9UTF8_DATA(nameUtf8);
-   sigUtf8 =  J9ROMFIELDSHAPE_SIGNATURE(fieldShape);
-   sPtr = (char *) J9UTF8_DATA(sigUtf8);
-   nameLength = J9UTF8_LENGTH(nameUtf8)+1;
+   nPtr = TR::Compiler->cls.getROMFieldShapeName(comp, (TR_OpaqueClassBlock *) aClazz, fieldShape, nameLength);
+   sPtr = TR::Compiler->cls.getROMFieldShapeSignature(comp, (TR_OpaqueClassBlock *) aClazz, fieldShape, sigLength);
    name = (char *) comp->trMemory()->allocateMemory(nameLength, allocKind);
-   sigLength = J9UTF8_LENGTH(sigUtf8)+1;
    signature = (char *) comp->trMemory()->allocateMemory(sigLength, allocKind);
    memcpy(name, nPtr, nameLength);
    memcpy(signature, sPtr, sigLength);
