@@ -74,11 +74,14 @@ uint8_t *TR::J9WatchedStaticFieldSnippet::emitSnippetBody()
    // and hence don't need to add relocation records here.
    if (isResolved)
       {
-      cg()->addExternalRelocation(
-         new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor + offsetof(J9JITWatchedStaticFieldData, fieldAddress), reinterpret_cast<uint8_t *>(node->getSymbolReference()), reinterpret_cast<uint8_t *>(node->getInlinedSiteIndex()), TR_DataAddress, cg()),
-         __FILE__,
-         __LINE__,
-         node);
+      if (cg()->needRelocationsForStatics())
+         {
+         cg()->addExternalRelocation(
+            new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor + offsetof(J9JITWatchedStaticFieldData, fieldAddress), reinterpret_cast<uint8_t *>(node->getSymbolReference()), reinterpret_cast<uint8_t *>(node->getInlinedSiteIndex()), TR_DataAddress, cg()),
+            __FILE__,
+            __LINE__,
+            node);
+         }
 
       if (cg()->comp()->getOption(TR_UseSymbolValidationManager))
          {
