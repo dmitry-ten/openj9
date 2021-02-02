@@ -129,6 +129,7 @@
 #include "env/J9JitMemory.hpp"
 #include "infra/Bit.hpp"               //for trailingZeroes
 #include "VMHelpers.hpp"
+#include "env/JSR292Methods.h"
 
 #ifdef LINUX
 #include <signal.h>
@@ -4852,6 +4853,37 @@ TR_J9VMBase::targetMethodFromMethodHandle(uintptr_t methodHandle)
       form,
       "vmentry",             "Ljava/lang/invoke/MemberName;");
    return targetMethodFromMemberName(vmentry);
+   }
+
+TR::KnownObjectTable::Index
+TR_J9VMBase::getKnotIndexOfInvokeCacheArrayAppendixIndex(TR::Compilation *comp, uintptr_t *invokeCacheArray)
+   {
+   TR::KnownObjectTable *knot = comp->getOrCreateKnownObjectTable();
+   if (!knot) return TR::KnownObjectTable::UNKNOWN;
+
+   TR::VMAccessCriticalSection vmAccess(this);
+   uintptr_t appendixElementRef = (uintptr_t) getReferenceElement(*invokeCacheArray, JSR292_invokeCacheArrayAppendixIndex);
+   return knot->getOrCreateIndex(appendixElementRef);
+   }
+
+TR_ResolvedMethod *
+TR_J9VMBase::targetResolvedMethodFromInvokeCacheArray(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, uintptr_t *invokeCacheArray)
+   {
+   TR_OpaqueMethodBlock *targetMethodObj = 0;
+      {
+      TR::VMAccessCriticalSection vmAccess(this);
+      uintptr_t memberNameElementRef = (uintptr_t) getReferenceElement(*invokeCacheArray, JSR292_invokeCacheArrayMemberNameIndex);
+      targetMethodObj = targetMethodFromMemberName(memberNameElementRef);
+      }
+   return createResolvedMethod(comp->trMemory(), targetMethodObj, owningMethod);
+   }
+
+TR::SymbolReference*
+TR_J9VMBase::refineInvokeCacheElementSymRefWithKnownObjectIndex(TR::Compilation *comp, TR::SymbolReference *originalSymRef, uintptr_t *invokeCacheArray, int32_t arrayIndex)
+   {
+   TR::VMAccessCriticalSection vmAccess(this);
+   uintptr_t arrayElementRef = (uintptr_t) getReferenceElement(*invokeCacheArray, arrayIndex);
+   return comp->getSymRefTab()->refineInvokeCacheElementSymRefWithKnownObjectIndex(originalSymRef, arrayElementRef);
    }
 
 char *
