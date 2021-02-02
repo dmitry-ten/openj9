@@ -9992,6 +9992,8 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
          dataCache = (TR_DataCache*)comp->getReservedDataCache();
          if (dataCache)
             {
+            uintptr_t dataCacheSize = dataCache->getCurrentHeapAlloc() - dataCache->getSegment()->heapBase;
+            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "dataCacheSize=%llu\n", dataCacheSize);
             dataCache->resetAllocationToMark();
             // TODO: make sure we didn't allocate a new dataCache (the mark was set in the old cache)
             TR_DataCacheManager::getManager()->makeDataCacheAvailable(dataCache);
@@ -10046,6 +10048,8 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
          dataCache = (TR_DataCache *)comp->getReservedDataCache();
          if (dataCache)
             {
+            uintptr_t dataCacheSize = dataCache->getCurrentHeapAlloc() - dataCache->getSegment()->heapBase;
+            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "dataCacheSize=%llu\n", dataCacheSize);
             dataCache->resetAllocationToMark();
             // TODO: make sure we didn't allocate a new dataCache (the mark was set in the old cache)
             TR_DataCacheManager::getManager()->makeDataCacheAvailable(dataCache);
@@ -10116,6 +10120,8 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
          dataCache = (TR_DataCache*)comp->getReservedDataCache();
          if (dataCache)
             {
+            uintptr_t dataCacheSize = dataCache->getCurrentHeapAlloc() - dataCache->getSegment()->heapBase;
+            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "dataCacheSize=%llu\n", dataCacheSize);
             dataCache->resetAllocationToMark();
             // TODO: make sure we didn't allocate a new dataCache (the mark was set in the old cache)
             TR_DataCacheManager::getManager()->makeDataCacheAvailable(dataCache);
@@ -10329,6 +10335,10 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
                   TR_ASSERT(dataCache->getAllocationMark() == (uint8_t*)comp->getAotMethodDataStart(),
                      "AllocationMark=%p does not match aotMethodDataStart=%p",
                      dataCache->getAllocationMark(), comp->getAotMethodDataStart());
+
+                  uintptr_t dataCacheSize = dataCache->getCurrentHeapAlloc() - dataCache->getSegment()->heapBase;
+                  TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "dataCacheSize=%llu\n", dataCacheSize);
+
                   dataCache->resetAllocationToMark();
                   // Reservation will be cancelled at end of compilation
 
@@ -10486,6 +10496,8 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
       dataCache = (TR_DataCache *)comp->getReservedDataCache();
       if (dataCache)
          {
+         uintptr_t dataCacheSize = dataCache->getCurrentHeapAlloc() - dataCache->getSegment()->heapBase;
+         TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "dataCacheSize=%llu\n", dataCacheSize);
          dataCache->resetAllocationToMark();
          // TODO: make sure we didn't allocate a new dataCache (the mark was set in the old cache)
          TR_DataCacheManager::getManager()->makeDataCacheAvailable(dataCache);
