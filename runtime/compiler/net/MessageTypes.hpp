@@ -181,6 +181,8 @@ enum MessageType : uint16_t
    VM_getObjectSizeClass,
    VM_stackWalkerMaySkipFramesSVM,
    VM_getFields,
+   VM_getInvokeCacheElementKnownObjectIndexForInvoke,
+   VM_targetResolvedMethodFromInvokeSideTable,
 
    // For static TR::CompilationInfo methods
    CompInfo_isCompiled,
@@ -417,6 +419,8 @@ static const char *messageNames[] =
    "VM_getObjectSizeClass",
    "VM_stackWalkerMaySkipFramesSVM",
    "VM_getFields",
+   "VM_getInvokeCacheElementKnownObjectIndexForInvoke",
+   "VM_targetResolvedMethodFromInvokeSideTable",
    "CompInfo_isCompiled",
    "CompInfo_getPCIfCompiled",
    "CompInfo_getInvocationCount",

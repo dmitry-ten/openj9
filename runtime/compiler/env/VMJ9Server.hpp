@@ -24,6 +24,7 @@
 #define VMJ9SERVER_H
 
 #include "env/VMJ9.h"
+#include "env/j9methodServer.hpp"
 
 /**
  * @class TR_J9ServerVM
@@ -61,8 +62,8 @@ public:
    virtual bool isSameOrSuperClass(J9Class *superClass, J9Class *subClass) override;
    virtual TR::Method * createMethod(TR_Memory *, TR_OpaqueClassBlock *, int32_t) override;
    virtual TR_ResolvedMethod * createResolvedMethod(TR_Memory * trMemory, TR_OpaqueMethodBlock * aMethod, TR_ResolvedMethod * owningMethod, TR_OpaqueClassBlock *classForNewInstance) override;
-   virtual TR_ResolvedMethod * createResolvedMethodWithSignature(TR_Memory * trMemory, TR_OpaqueMethodBlock * aMethod, TR_OpaqueClassBlock *classForNewInstance,
-                                                                 char *signature, int32_t signatureLength, TR_ResolvedMethod * owningMethod) override;
+   virtual TR_ResolvedMethod * createResolvedMethodWithSignature(TR_Memory * trMemory, TR_OpaqueMethodBlock * aMethod, TR_OpaqueClassBlock *classForNewInstance, char *signature, int32_t signatureLength, TR_ResolvedMethod * owningMethod);
+   TR_ResolvedMethod * createResolvedMethodWithSignature(TR_Memory * trMemory, TR_OpaqueMethodBlock * aMethod, TR_OpaqueClassBlock *classForNewInstance, char *signature, int32_t signatureLength, TR_ResolvedMethod * owningMethod, const TR_ResolvedJ9JITServerMethodInfo &methodInfo);
    virtual TR_YesNoMaybe isInstanceOf(TR_OpaqueClassBlock * a, TR_OpaqueClassBlock *b, bool objectTypeIsFixed, bool castTypeIsFixed = true, bool optimizeForAOT = false) override;
    virtual TR_OpaqueClassBlock * getSystemClassFromClassName(const char * name, int32_t length, bool isVettedForAOT = false) override;
    virtual TR_OpaqueClassBlock * getByteArrayClass() override;
@@ -202,6 +203,15 @@ public:
    virtual bool getNurserySpaceBounds(uintptr_t *base, uintptr_t *top) override;
    virtual UDATA getLowTenureAddress() override;
    virtual UDATA getHighTenureAddress() override;
+
+   // Openjdk implementation
+#if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+   virtual TR::KnownObjectTable::Index getInvokeCacheElementKnownObjectIndexForInvokeHandle(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, int32_t cpIndex, bool isMemberNameObject) override;
+   virtual TR::KnownObjectTable::Index getInvokeCacheElementKnownObjectIndexForInvokeDynamic(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, int32_t callSiteIndex, bool isMemberNameObject) override;
+   
+   virtual TR_ResolvedMethod *targetResolvedMethodFromInvokeHandleSideTable(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, int32_t cpIndex) override;
+   virtual TR_ResolvedMethod *targetResolvedMethodFromInvokeDynamicSideTable(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, int32_t callSiteIndex) override;
+#endif
 
 private:
    bool instanceOfOrCheckCastHelper(J9Class *instanceClass, J9Class* castClass, bool cacheUpdate);

@@ -562,15 +562,9 @@ TR::SymbolReference *
 J9::SymbolReferenceTable::refineInvokeCacheElementSymRefWithKnownObjectIndexForInvokeHandle(TR::ResolvedMethodSymbol * owningMethodSymbol,  TR::SymbolReference * originalSymRef, int32_t cpIndex, bool isMemberNameObject)
    {
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
-   TR::VMAccessCriticalSection invokeCacheEntry(comp());
-   TR::KnownObjectTable *knot = comp()->getOrCreateKnownObjectTable();
-   if (!knot) return originalSymRef;
-   TR_ResolvedJ9Method *owningMethod = static_cast<TR_ResolvedJ9Method*>(owningMethodSymbol->getResolvedMethod());
-   TR::KnownObjectTable::Index arrayElementKnotIndex = TR::KnownObjectTable::UNKNOWN;
-   if (!isMemberNameObject)
-      arrayElementKnotIndex = knot->getOrCreateIndex((uintptr_t) owningMethod->appendixElementRefFromInvokeHandleSideTable(cpIndex), true);
-   else
-      arrayElementKnotIndex = knot->getOrCreateIndex((uintptr_t) owningMethod->memberNameElementRefFromInvokeHandleSideTable(cpIndex), true);
+   TR::KnownObjectTable::Index arrayElementKnotIndex = fej9->getInvokeCacheElementKnownObjectIndexForInvokeHandle(comp(), owningMethodSymbol->getResolvedMethod(), cpIndex, isMemberNameObject);
+   if (arrayElementKnotIndex == TR::KnownObjectTable::UNKNOWN)
+      return originalSymRef;
    
    TR::SymbolReference *newRef = findOrCreateSymRefWithKnownObject(originalSymRef, arrayElementKnotIndex);
    return newRef;
@@ -581,15 +575,9 @@ TR::SymbolReference *
 J9::SymbolReferenceTable::refineInvokeCacheElementSymRefWithKnownObjectIndexForInvokeDynamic(TR::ResolvedMethodSymbol * owningMethodSymbol,  TR::SymbolReference * originalSymRef, int32_t callSiteIndex, bool isMemberNameObject)
    {
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
-   TR::VMAccessCriticalSection invokeCacheEntry(comp());
-   TR::KnownObjectTable *knot = comp()->getOrCreateKnownObjectTable();
-   if (!knot) return originalSymRef;
-   TR_ResolvedJ9Method *owningMethod = static_cast<TR_ResolvedJ9Method*>(owningMethodSymbol->getResolvedMethod());
-   TR::KnownObjectTable::Index arrayElementKnotIndex = TR::KnownObjectTable::UNKNOWN;
-   if (!isMemberNameObject)
-      arrayElementKnotIndex = knot->getOrCreateIndex((uintptr_t) owningMethod->appendixElementRefFromInvokeDynamicSideTable(callSiteIndex), true);
-   else
-      arrayElementKnotIndex = knot->getOrCreateIndex((uintptr_t) owningMethod->memberNameElementRefFromInvokeDynamicSideTable(callSiteIndex), true);
+   TR::KnownObjectTable::Index arrayElementKnotIndex = fej9->getInvokeCacheElementKnownObjectIndexForInvokeDynamic(comp(), owningMethodSymbol->getResolvedMethod(), callSiteIndex, isMemberNameObject);
+   if (arrayElementKnotIndex == TR::KnownObjectTable::UNKNOWN)
+      return originalSymRef;
 
    TR::SymbolReference *newRef = findOrCreateSymRefWithKnownObject(originalSymRef, arrayElementKnotIndex);
    return newRef;

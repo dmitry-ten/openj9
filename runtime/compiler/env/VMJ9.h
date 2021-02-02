@@ -833,6 +833,11 @@ public:
     * \return char * the signature for linkToStatic
     */
    char *                getSignatureForLinkToStaticForInvokeDynamic(TR::Compilation* comp, J9UTF8* romMethodSignature);
+   virtual TR::KnownObjectTable::Index getInvokeCacheElementKnownObjectIndexForInvokeHandle(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, int32_t cpIndex, bool isMemberNameObject);
+   virtual TR::KnownObjectTable::Index getInvokeCacheElementKnownObjectIndexForInvokeDynamic(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, int32_t callSiteIndex, bool isMemberNameObject);
+   
+   virtual TR_ResolvedMethod *targetResolvedMethodFromInvokeHandleSideTable(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, int32_t cpIndex);
+   virtual TR_ResolvedMethod *targetResolvedMethodFromInvokeDynamicSideTable(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, int32_t callSiteIndex);
 #endif
 
    // JSR292 }}}

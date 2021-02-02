@@ -614,21 +614,16 @@ InterpreterEmulator::visitInvokedynamic()
    if (owningMethod->isUnresolvedCallSiteTableEntry(callSiteIndex) || comp()->compileRelocatableCode()) return; // do nothing if unresolved or is AOT
 
    // add appendix object to knot and push to stack if emulator is initialized with state
+   TR_J9VMBase *fej9 = comp()->fej9();
    if (_iteratorWithState)
       {
       if (knot)
-         push(new (trStackMemory()) KnownObjOperand(knot->getOrCreateIndex((uintptr_t )owningMethod->appendixElementRefFromInvokeDynamicSideTable(callSiteIndex), true)));
+         push(new (trStackMemory()) KnownObjOperand(fej9->getInvokeCacheElementKnownObjectIndexForInvokeDynamic(comp(), owningMethod, callSiteIndex, false)));
       else
          pushUnknownOperand();
       }
 
-   TR_J9VMBase *fej9 = comp()->fej9();
-   TR_OpaqueMethodBlock* targetMethodObj = 0;
-      {
-      TR::VMAccessCriticalSection vmAccess(fej9);
-      targetMethodObj = fej9->targetMethodFromMemberName((uintptr_t) owningMethod->memberNameElementRefFromInvokeDynamicSideTable(callSiteIndex));
-      }
-   TR_ResolvedMethod * targetMethod = fej9->createResolvedMethod(this->trMemory(), targetMethodObj, owningMethod);
+   TR_ResolvedMethod *targetMethod = fej9->targetResolvedMethodFromInvokeDynamicSideTable(comp(), owningMethod, callSiteIndex);
 
    bool allconsts = false;
    isIndirectCall = true;
@@ -683,23 +678,18 @@ InterpreterEmulator::visitInvokehandle()
 
    if (owningMethod->isUnresolvedMethodTypeTableEntry(cpIndex) || comp()->compileRelocatableCode()) return; // do nothing if unresolved or is AOT
 
+   TR_J9VMBase *fej9 = comp()->fej9();
    // add appendix object to knot and push to stack if emulator is initialized with state
    if (_iteratorWithState)
       {
       TR::KnownObjectTable *knot = comp()->getOrCreateKnownObjectTable();
       if (knot)
-         push(new (trStackMemory()) KnownObjOperand(knot->getOrCreateIndex((uintptr_t) owningMethod->appendixElementRefFromInvokeHandleSideTable(cpIndex), true)));
+         push(new (trStackMemory()) KnownObjOperand(fej9->getInvokeCacheElementKnownObjectIndexForInvokeHandle(comp(), owningMethod, cpIndex, false)));
       else
          pushUnknownOperand();
       }
 
-   TR_J9VMBase *fej9 = comp()->fej9();
-   TR_OpaqueMethodBlock * targetMethodObj = 0;
-      {
-      TR::VMAccessCriticalSection vmAccess(fej9);
-      targetMethodObj = fej9->targetMethodFromMemberName((uintptr_t) owningMethod->memberNameElementRefFromInvokeHandleSideTable(cpIndex));
-      }
-   TR_ResolvedMethod * targetMethod = fej9->createResolvedMethod(this->trMemory(), targetMethodObj, owningMethod);
+   TR_ResolvedMethod *targetMethod = fej9->targetResolvedMethodFromInvokeHandleSideTable(comp(), owningMethod, cpIndex);
 
    bool allconsts = false;
    if (targetMethod->numberOfExplicitParameters() > 0 && targetMethod->numberOfExplicitParameters() <= _pca.getNumPrevConstArgs(targetMethod->numberOfExplicitParameters()))

@@ -4893,6 +4893,62 @@ TR_J9VMBase::getSignatureForLinkToStaticForInvokeDynamic(TR::Compilation* comp, 
       }
    return linkToStaticSignature;
    }
+
+TR::KnownObjectTable::Index
+TR_J9VMBase::getInvokeCacheElementKnownObjectIndexForInvokeHandle(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, int32_t cpIndex, bool isMemberNameObject)
+   {
+   TR::VMAccessCriticalSection invokeCacheEntry(this);
+   TR::KnownObjectTable::Index arrayElementKnotIndex = TR::KnownObjectTable::UNKNOWN;
+   TR::KnownObjectTable *knot = comp->getOrCreateKnownObjectTable();
+   if (!knot) return arrayElementKnotIndex;
+
+   TR_ResolvedJ9Method *resolvedMethod = static_cast<TR_ResolvedJ9Method*>(owningMethod);
+   if (!isMemberNameObject)
+      arrayElementKnotIndex = knot->getOrCreateIndex((uintptr_t) resolvedMethod->appendixElementRefFromInvokeHandleSideTable(cpIndex), true);
+   else
+      arrayElementKnotIndex = knot->getOrCreateIndex((uintptr_t) resolvedMethod->memberNameElementRefFromInvokeHandleSideTable(cpIndex), true);
+   return arrayElementKnotIndex;
+   }
+
+TR::KnownObjectTable::Index
+TR_J9VMBase::getInvokeCacheElementKnownObjectIndexForInvokeDynamic(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, int32_t callSiteIndex, bool isMemberNameObject)
+   {
+   TR::VMAccessCriticalSection invokeCacheEntry(this);
+   TR::KnownObjectTable::Index arrayElementKnotIndex = TR::KnownObjectTable::UNKNOWN;
+   TR::KnownObjectTable *knot = comp->getOrCreateKnownObjectTable();
+   if (!knot) return arrayElementKnotIndex;
+
+   TR_ResolvedJ9Method *resolvedMethod = static_cast<TR_ResolvedJ9Method*>(owningMethod);
+   if (!isMemberNameObject)
+      arrayElementKnotIndex = knot->getOrCreateIndex((uintptr_t) resolvedMethod->appendixElementRefFromInvokeDynamicSideTable(callSiteIndex), true);
+   else
+      arrayElementKnotIndex = knot->getOrCreateIndex((uintptr_t) resolvedMethod->memberNameElementRefFromInvokeDynamicSideTable(callSiteIndex), true);
+   return arrayElementKnotIndex;
+   }
+
+TR_ResolvedMethod *
+TR_J9VMBase::targetResolvedMethodFromInvokeHandleSideTable(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, int32_t cpIndex)
+   {
+   TR_OpaqueMethodBlock *targetMethodObj = 0;
+      {
+      TR_ResolvedJ9Method *resolvedMethod = static_cast<TR_ResolvedJ9Method*>(owningMethod);
+      TR::VMAccessCriticalSection vmAccess(this);
+      targetMethodObj = targetMethodFromMemberName((uintptr_t) resolvedMethod->memberNameElementRefFromInvokeHandleSideTable(cpIndex));
+      }
+   return createResolvedMethod(comp->trMemory(), targetMethodObj, owningMethod);
+   }
+
+TR_ResolvedMethod *
+TR_J9VMBase::targetResolvedMethodFromInvokeDynamicSideTable(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, int32_t callSiteIndex)
+   {
+   TR_OpaqueMethodBlock* targetMethodObj = 0;
+      {
+      TR_ResolvedJ9Method *resolvedMethod = static_cast<TR_ResolvedJ9Method*>(owningMethod);
+      TR::VMAccessCriticalSection vmAccess(this);
+      targetMethodObj = targetMethodFromMemberName((uintptr_t) resolvedMethod->memberNameElementRefFromInvokeDynamicSideTable(callSiteIndex));
+      }
+   return createResolvedMethod(comp->trMemory(), targetMethodObj, owningMethod);
+   }
 #endif /* defined(J9VM_OPT_OPENJDK_METHODHANDLE) */
 
 /**
