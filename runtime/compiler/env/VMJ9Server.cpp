@@ -2140,6 +2140,18 @@ TR_J9ServerVM::refineInvokeCacheElementSymRefWithKnownObjectIndex(TR::Compilatio
 #endif /* defined(J9VM_OPT_OPENJDK_METHODHANDLE) */
 
 bool
+TR_J9ServerVM::isLambdaFormGeneratedMethod(TR_OpaqueMethodBlock *method)
+   {
+   return false;
+   }
+
+bool
+TR_J9ServerVM::isLambdaFormGeneratedMethod(TR_ResolvedMethod *method)
+   {
+   return false;
+   }
+
+bool
 TR_J9SharedCacheServerVM::isClassLibraryMethod(TR_OpaqueMethodBlock *method, bool vettedForAOT)
    {
    TR_ASSERT(vettedForAOT, "The TR_J9SharedCacheServerVM version of this method is expected to be called only from isClassLibraryMethod.\n"
@@ -2928,3 +2940,4 @@ TR_J9SharedCacheServerVM::getResolvedInterfaceMethod(TR_OpaqueMethodBlock *inter
       }
    return ramMethod;
    }
+
