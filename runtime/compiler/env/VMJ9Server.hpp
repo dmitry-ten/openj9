@@ -221,6 +221,12 @@ public:
    virtual TR_ResolvedMethod *targetResolvedMethodFromInvokeCacheArray(TR::Compilation *comp, TR_ResolvedMethod *owningMethod, uintptr_t *invokeCacheArray) override;
    virtual TR::KnownObjectTable::Index getKnotIndexOfInvokeCacheArrayAppendixIndex(TR::Compilation *comp, uintptr_t *invokeCacheArray) override;
    virtual TR::SymbolReference* refineInvokeCacheElementSymRefWithKnownObjectIndex(TR::Compilation *comp, TR::SymbolReference *originalSymRef, uintptr_t *invokeCacheArray, int32_t arrayIndex) override;
+
+   virtual J9JNIMethodID* jniMethodIdFromMemberName(uintptr_t memberName) override;
+   virtual J9JNIMethodID* jniMethodIdFromMemberName(TR::Compilation* comp, TR::KnownObjectTable::Index objIndex) override;
+   virtual int32_t vTableOrITableIndexFromMemberName(uintptr_t memberName) override;
+   virtual int32_t vTableOrITableIndexFromMemberName(TR::Compilation* comp, TR::KnownObjectTable::Index objIndex) override;
+   virtual TR::KnownObjectTable::Index getMemberNameFieldKnotIndexFromMethodHandleKnotIndex(TR::Compilation *comp, TR::KnownObjectTable::Index mhIndex, char *fieldName) override;
 #endif
 
 private:

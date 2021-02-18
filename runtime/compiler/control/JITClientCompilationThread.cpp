@@ -1066,6 +1066,31 @@ handleServerMessage(JITServer::ClientStream *client, TR_J9VM *fe, JITServer::Mes
          client->write(response, arrayElementKnotIndex, knot->getPointerLocation(arrayElementKnotIndex));
          }
          break;
+      case MessageType::VM_isLambdaFormGeneratedMethod:
+         {
+         auto recv = client->getRecvData<TR_OpaqueMethodBlock *>();
+         client->write(response, fe->isLambdaFormGeneratedMethod(std::get<0>(recv)));
+         }
+         break;
+      case MessageType::VM_jniMethodIdFromMemberName:
+         {
+         auto recv = client->getRecvData<TR::KnownObjectTable::Index>();
+         client->write(response, fe->jniMethodIdFromMemberName(comp, std::get<0>(recv)));
+         }
+         break;
+      case MessageType::VM_vTableOrITableIndexFromMemberName:
+         {
+         auto recv = client->getRecvData<TR::KnownObjectTable::Index>();
+         client->write(response, fe->vTableOrITableIndexFromMemberName(comp, std::get<0>(recv)));
+         }
+         break;
+      case MessageType::VM_getMemberNameFieldKnotIndexFromMethodHandleKnotIndex:
+         {
+         auto recv = client->getRecvData<TR::KnownObjectTable::Index, std::string>();
+         auto &memberNameStr = std::get<1>(recv);
+         client->write(response, fe->getMemberNameFieldKnotIndexFromMethodHandleKnotIndex(comp, std::get<0>(recv), &memberNameStr[0]));
+         }
+         break;
       case MessageType::mirrorResolvedJ9Method:
          {
          // allocate a new TR_ResolvedJ9Method on the heap, to be used as a mirror for performing actions which are only
@@ -1076,7 +1101,6 @@ handleServerMessage(JITServer::ClientStream *client, TR_J9VM *fe, JITServer::Mes
          uint32_t vTableSlot = std::get<2>(recv);
          bool isAOT = std::get<3>(recv);
          TR_ResolvedJ9JITServerMethodInfo methodInfo;
-         // if in AOT mode, create a relocatable method mirror
          TR_ResolvedJ9JITServerMethod::createResolvedMethodMirror(methodInfo, method, vTableSlot, owningMethod, fe, trMemory);
 
          client->write(response, methodInfo);

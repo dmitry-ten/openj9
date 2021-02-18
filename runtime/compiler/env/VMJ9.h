@@ -827,25 +827,27 @@ public:
     *    Return MemberName.vmindex, a J9JNIMethodID pointer containing vtable/itable offset for the MemberName method
     *    Caller must acquire VM access
     */
-   J9JNIMethodID* jniMethodIdFromMemberName(uintptr_t memberName);
+   virtual J9JNIMethodID* jniMethodIdFromMemberName(uintptr_t memberName);
    /*
     * \brief
     *    Return MemberName.vmindex, a J9JNIMethodID pointer containing vtable/itable offset for the MemberName method
     *    VM access is not required
     */
-   J9JNIMethodID* jniMethodIdFromMemberName(TR::Compilation* comp, TR::KnownObjectTable::Index objIndex);
+   virtual J9JNIMethodID* jniMethodIdFromMemberName(TR::Compilation* comp, TR::KnownObjectTable::Index objIndex);
    /*
     * \brief
     *    Return vtable or itable index of a method represented by MemberName
     *    Caller must acquire VM access
     */
-   int32_t vTableOrITableIndexFromMemberName(uintptr_t memberName);
+   virtual int32_t vTableOrITableIndexFromMemberName(uintptr_t memberName);
    /*
     * \brief
     *    Return vtable or itable index of a method represented by MemberName
     *    VM access is not required
     */
-   int32_t vTableOrITableIndexFromMemberName(TR::Compilation* comp, TR::KnownObjectTable::Index objIndex);
+   virtual int32_t vTableOrITableIndexFromMemberName(TR::Compilation* comp, TR::KnownObjectTable::Index objIndex);
+
+   virtual TR::KnownObjectTable::Index getMemberNameFieldKnotIndexFromMethodHandleKnotIndex(TR::Compilation *comp, TR::KnownObjectTable::Index mhIndex, char *fieldName);
 
    /*
     * \brief

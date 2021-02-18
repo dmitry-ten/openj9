@@ -4944,6 +4944,16 @@ TR_J9VMBase::vTableOrITableIndexFromMemberName(TR::Compilation* comp, TR::KnownO
    return -1;
     }
 
+TR::KnownObjectTable::Index
+TR_J9VMBase::getMemberNameFieldKnotIndexFromMethodHandleKnotIndex(TR::Compilation *comp, TR::KnownObjectTable::Index mhIndex, char *fieldName)
+   {
+   TR::VMAccessCriticalSection dereferenceKnownObjectField(this);
+   TR::KnownObjectTable *knot = comp->getKnownObjectTable();
+   uintptr_t mhObject = knot->getPointer(mhIndex);
+   uintptr_t mnObject = getReferenceField(mhObject, fieldName, "Ljava/lang/invoke/MemberName;");
+   return knot->getOrCreateIndex(mnObject);
+   }
+
 char *
 TR_J9VMBase::getSignatureForLinkToStaticForInvokeHandle(TR::Compilation* comp, J9UTF8* romMethodSignature, int32_t &signatureLength)
    {
